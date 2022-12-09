@@ -1,0 +1,35 @@
+cluster:
+  enabled: true
+  noAdvertise: true
+  replicas: 3
+
+nats:
+  image: nats:alpine
+  jetstream:
+    enabled: true
+
+    fileStorage:
+      enabled: true
+      storageDirectory: /data/
+      existingClaim: nats-js-disk
+      claimStorageSize: 3Gi
+
+leafnodes:
+  enabled: false
+  noAdvertise: true
+
+natsbox:
+  enabled: true
+
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: node.kubernetes.io/purpose
+              operator: In
+              values:
+                - nats
+
+
+

@@ -1,0 +1,25 @@
+cluster:
+  enabled: true
+  noAdvertise: true
+
+nats:
+  image: nats:alpine
+  jetstream:
+    enabled: true
+
+    fileStorage:
+      enabled: true
+      storageDirectory: /data/
+      claimStorageSize: 200Mb
+
+leafnodes:
+  enabled: false
+  noAdvertise: true
+
+natsbox:
+  enabled: true
+
+
+
+
+
