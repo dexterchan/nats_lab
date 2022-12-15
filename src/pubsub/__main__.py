@@ -6,12 +6,13 @@ import sys
 def main():
     """Console script for nats_lab."""
     parser = argparse.ArgumentParser()
-    parser.add_argument('_', nargs='*')
+    parser.add_argument("-s", "server")
+    parser.add_argument("-p", "port")
     args = parser.parse_args()
 
-    print("Arguments: " + str(args._))
-    print("Replace this message by putting your code into "
-          "nats_lab.cli.main")
+    server = args.server
+    port = int(args.port)
+    
     return 0
 
 
