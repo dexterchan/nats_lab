@@ -5,7 +5,7 @@ from typing import Dict, List
 import json
 
 
-class Async_Publisher_Nats:
+class Async_PubSub_Nats:
     def __init__(self, server: str, port: int) -> None:
         self.url = f"nats://{server}:{port}"
         self.reconnect_seconds = 10

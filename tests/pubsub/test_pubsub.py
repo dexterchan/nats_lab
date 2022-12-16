@@ -1,5 +1,5 @@
 import pytest
-from pubsub import nats_lab
+from pubsub import client
 import asyncio
 import json
 test_server = "localhost"
@@ -8,7 +8,7 @@ test_subject = "test_py"
 
 @pytest.mark.asyncio
 async def test_connect():
-    p = nats_lab.Async_Publisher_Nats(server=test_server, port=test_port)
+    p = client.Async_PubSub_Nats(server=test_server, port=test_port)
 
     
     await p.connect()
@@ -17,7 +17,7 @@ async def test_connect():
 
 @pytest.mark.asyncio
 async def test_publish():
-    p = nats_lab.Async_Publisher_Nats(server=test_server, port=test_port)
+    p = client.Async_PubSub_Nats(server=test_server, port=test_port)
 
     await p.connect()
     await p.publish(test_subject, payloads=[
@@ -29,7 +29,7 @@ async def test_publish():
     
 @pytest.mark.asyncio
 async def test_publish_subscribe(event_loop):
-    p = nats_lab.Async_Publisher_Nats(server=test_server, port=test_port)
+    p = client.Async_PubSub_Nats(server=test_server, port=test_port)
 
     await p.connect()
 
@@ -54,7 +54,7 @@ async def test_publish_subscribe_loop(event_loop):
     total_messages = 10
     
 
-    p = nats_lab.Async_Publisher_Nats(server=test_server, port=test_port)
+    p = client.Async_PubSub_Nats(server=test_server, port=test_port)
     await p.connect()
     finish_run = asyncio.Future()
 
