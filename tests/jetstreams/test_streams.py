@@ -1,7 +1,7 @@
 import pytest
 import asyncio
-from streams.client import Async_EventBus_Nats
-from streams.exception import SubjectNotFoundException
+from jetstreams.client import Async_EventBus_Nats
+from jetstreams.exception import SubjectNotFoundException
 from typing import Any
 from utility.logging import get_test_logger
 

@@ -18,4 +18,4 @@ def get_test_subject() -> str:
 
 @pytest.fixture
 def get_test_stream() -> str:
-    return "test_stream"
+    return "test_stream2"
