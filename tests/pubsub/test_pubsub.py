@@ -2,22 +2,22 @@ import pytest
 from pubsub import client
 import asyncio
 import json
-test_server = "localhost"
-test_port: int = 4222
+
 test_subject = "test_py"
 
 @pytest.mark.asyncio
-async def test_connect():
-    p = client.Async_PubSub_Nats(server=test_server, port=test_port)
+async def test_connect(get_connection_details):
+    conn_details:dict = get_connection_details
+    p = client.Async_PubSub_Nats(server=conn_details["hostname"], port=conn_details["port"])
 
-    
     await p.connect()
     await p.close()
     print("connect ok")
 
 @pytest.mark.asyncio
-async def test_publish():
-    p = client.Async_PubSub_Nats(server=test_server, port=test_port)
+async def test_publish(get_connection_details):
+    conn_detials:dict = get_connection_details
+    p = client.Async_PubSub_Nats(server=conn_detials["hostname"], port=conn_detials["port"])
 
     await p.connect()
     await p.publish(test_subject, payloads=[
@@ -28,8 +28,9 @@ async def test_publish():
     print("ok")
     
 @pytest.mark.asyncio
-async def test_publish_subscribe(event_loop):
-    p = client.Async_PubSub_Nats(server=test_server, port=test_port)
+async def test_publish_subscribe(event_loop, get_connection_details):
+    conn_details:dict = get_connection_details
+    p = client.Async_PubSub_Nats(server=conn_details["hostname"], port=conn_details["port"])
 
     await p.connect()
 
@@ -48,13 +49,13 @@ async def test_publish_subscribe(event_loop):
     print("ok")
 
 @pytest.mark.asyncio
-async def test_publish_subscribe_loop(event_loop):
-    
+async def test_publish_subscribe_loop(event_loop, get_connection_details):
+    conn_details = get_connection_details
     returned_message = []
     total_messages = 10
     
 
-    p = client.Async_PubSub_Nats(server=test_server, port=test_port)
+    p = client.Async_PubSub_Nats(server=conn_details["hostname"], port=conn_details["port"])
     await p.connect()
     finish_run = asyncio.Future()
 
