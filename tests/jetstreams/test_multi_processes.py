@@ -12,7 +12,7 @@ from utility.logging import get_test_logger
 logger = get_test_logger(__name__)
 
 test_cases = [
-    #"test_controller",
+    "test_controller",
     #"test_worker"
     ]
 
@@ -29,7 +29,7 @@ class Envelope:
 test_interval:int = 10
 test_total:int = 10
 
-execution_limit:int = 30
+execution_limit:int = 5
 
 def _create_msg(job_id:str, id:int, total:int, interval:int) -> Envelope:
     return Envelope(
@@ -88,7 +88,7 @@ async def _controller(hostname:str,
 
 
 @pytest.mark.skipif("test_controller" not in test_cases, reason="no need")
-def test_controller_no_response(get_connection_details, get_test_subject, get_test_stream) -> None:
+def test_controller_no_response(get_connection_details, get_test_subject_controller_no_response, get_test_stream_controller_no_response) -> None:
     
     start_env = _create_msg(job_id=uuid.uuid4().hex, id=1, total=test_total,interval=test_interval)
     conn_details:dict[str, Any] = get_connection_details
@@ -100,8 +100,8 @@ def test_controller_no_response(get_connection_details, get_test_subject, get_te
         await _controller(
             hostname=conn_details.get("hostname"),
             port=conn_details.get("port"),
-            test_subject=f"{get_test_subject}",
-            test_stream=get_test_stream,
+            test_subject=f"{get_test_subject_controller_no_response}",
+            test_stream=get_test_stream_controller_no_response,
             seed_payload=start_env,
             process_msg=_process_feedback_message
         )
@@ -114,7 +114,7 @@ def test_controller_no_response(get_connection_details, get_test_subject, get_te
     pass
 
 @pytest.mark.skipif("test_worker" not in test_cases, reason="no need")
-def test_worker (get_connection_details, get_test_subject, get_test_stream) -> None:
+def test_worker (get_connection_details, get_test_subject_controller_no_response, get_test_stream_controller_no_response) -> None:
 
     async def _process():
         conn_details:dict[str, Any] = get_connection_details
@@ -124,7 +124,7 @@ def test_worker (get_connection_details, get_test_subject, get_test_stream) -> N
         )
         await p.connect()
 
-        pubsub = await p.pull_subscribe(subject=get_test_subject, durable_name="test_worker1")
+        pubsub = await p.pull_subscribe(subject=get_test_subject_controller_no_response, durable_name="test_worker1")
 
         continue_read:bool = True
         message_received:int = 0

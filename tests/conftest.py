@@ -19,3 +19,22 @@ def get_test_subject() -> str:
 @pytest.fixture
 def get_test_stream() -> str:
     return "test_stream2"
+
+
+
+
+@pytest.fixture
+def get_test_stream_controller_normal_response() -> str:
+    return "test_stream_controller_normal_response"
+
+@pytest.fixture
+def get_test_subject_controller_normal_response() -> str:
+    return "test_subject_controller_normal_response"
+
+@pytest.fixture
+def get_test_stream_controller_no_response() -> str:
+    return "test_stream_controller_no_response"
+
+@pytest.fixture
+def get_test_subject_controller_no_response()->str:
+    return "test_subject_controller_no_response"
