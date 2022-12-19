@@ -95,8 +95,8 @@ async def test_publish_subscribe(get_connection_details, get_test_stream, get_te
             logger.info(f"returned {messages}")
             for m in messages:
                 print(f"received: {m}")
-                data = m.data
-                print(data)
+                assert "id" in m
+                print(m)
             assert len(messages) == num_of_messages
     except SubjectNotFoundException as subject_ex:
         print(subject_ex)

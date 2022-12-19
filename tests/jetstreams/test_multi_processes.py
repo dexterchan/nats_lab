@@ -13,7 +13,7 @@ logger = get_test_logger(__name__)
 
 test_cases = [
     "test_controller",
-    #"test_worker"
+    "test_worker"
     ]
 
 @dataclass
@@ -75,7 +75,8 @@ async def _controller(hostname:str,
                     pull_subscription=pubsub, number_msgs=3, timeout_seconds=2
                 ) as messages:
                 for m in messages:
-                    next_job, continue_next = process_msg(m)
+                    logger.info(f"controller received {m.data}")
+                    next_job, continue_next = process_msg(m.data)
                     if continue_next:
                         await p.publish(subject=job_submit_subject, payloads=[next_job.__dict__])
         except nats.errors.TimeoutError:
@@ -93,7 +94,7 @@ def test_controller_no_response(get_connection_details, get_test_subject_control
     start_env = _create_msg(job_id=uuid.uuid4().hex, id=1, total=test_total,interval=test_interval)
     conn_details:dict[str, Any] = get_connection_details
 
-    def _process_feedback_message() -> tuple[Envelope, bool]:
+    def _process_feedback_message(msg) -> tuple[Envelope, bool]:
         return None, False
     
     async def _process():
@@ -115,6 +116,8 @@ def test_controller_no_response(get_connection_details, get_test_subject_control
 
 @pytest.mark.skipif("test_worker" not in test_cases, reason="no need")
 def test_worker (get_connection_details, get_test_subject_controller_no_response, get_test_stream_controller_no_response) -> None:
+    job_submit_subject = f"{get_test_subject_controller_no_response}_job_submit"
+    job_feedback_subject = f"{get_test_subject_controller_no_response}_job_feedback"
 
     async def _process():
         conn_details:dict[str, Any] = get_connection_details
@@ -124,7 +127,7 @@ def test_worker (get_connection_details, get_test_subject_controller_no_response
         )
         await p.connect()
 
-        pubsub = await p.pull_subscribe(subject=get_test_subject_controller_no_response, durable_name="test_worker1")
+        pubsub = await p.pull_subscribe(subject=job_submit_subject, durable_name="test_worker1")
 
         continue_read:bool = True
         message_received:int = 0
@@ -137,8 +140,12 @@ def test_worker (get_connection_details, get_test_subject_controller_no_response
                     ) as messages:
                     for m in messages:
                         logger.info(m)
+                        received_msg = Envelope(**m)
                         message_received += 1
+                        logger.info(f"Worker received {received_msg}")
+                        p.publish(subject=job_feedback_subject, payloads=[received_msg.__dict__])
                     continue_read = (len(messages) > 0)
+
         except nats.errors.TimeoutError:
             logger.info("Time out reading")
         finally:

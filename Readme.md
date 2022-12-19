@@ -1,4 +1,9 @@
 
+## Unit test:
+```
+clear && pytest  -s  -n 2 tests/jetstreams/test_multi_processes.py
+```
+
 ## Notes:
 pytest async not working with corp vpn
 ## Reference

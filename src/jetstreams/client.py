@@ -73,10 +73,11 @@ class Async_EventBus_Nats:
         return psub
 
     @asynccontextmanager
-    async def pull_subscribe_fetch_message_helper(self, pull_subscription: JetStreamContext.PullSubscription, number_msgs:int, timeout_seconds:float):
+    async def pull_subscribe_fetch_message_helper(self, pull_subscription: JetStreamContext.PullSubscription, number_msgs:int, timeout_seconds:float) -> Any:
         msgs = await pull_subscription.fetch(batch=number_msgs, timeout=timeout_seconds)
         try:
-            yield msgs
+            json_msgs = [ json.loads(m.data) for m in msgs]
+            yield json_msgs
         finally:
             for m in msgs:
                 await m.ack()
