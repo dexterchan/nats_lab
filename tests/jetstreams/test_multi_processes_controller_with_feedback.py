@@ -27,9 +27,9 @@ class Envelope:
     trial:Optional[int]=0
 
 test_interval:int = 10
-test_total:int = 10
+test_total:int = 5
 
-execution_limit:int = 5*2
+execution_limit:int = 5 * test_total
 
 def _create_msg(job_id:str, id:int, total:int, interval:int) -> Envelope:
     return Envelope(
@@ -72,7 +72,7 @@ async def _controller(hostname:str,
     work_done:bool = False
     while (datetime.now().timestamp() < expiry_ex_datetime.timestamp()) and (not work_done):
         try:
-            logger.info(f"controller subscribing to {job_feedback_subject}")
+            logger.debug(f"controller subscribing to {job_feedback_subject}")
             async with p.pull_subscribe_fetch_message_helper(
                     pull_subscription=pubsub, number_msgs=3, timeout_seconds=2
                 ) as messages:
@@ -80,6 +80,7 @@ async def _controller(hostname:str,
                     logger.info(f"controller received {m}")
                     received_msg = Envelope(**m)
                     next_job, continue_next = process_msg(received_msg)
+                    logger.info(f"controller will run next job: {continue_next} with msg: {next_job}")
                     if continue_next:
                         await p.publish(subject=job_submit_subject, payloads=[next_job.__dict__])
         except nats.errors.TimeoutError:
@@ -92,23 +93,40 @@ async def _controller(hostname:str,
 
 
 @pytest.mark.skipif("test_controller" not in test_cases, reason="no need")
-def test_controller_no_response(get_connection_details, get_test_subject_controller_no_response, get_test_stream_controller_no_response) -> None:
+def test_controller_with_response(get_connection_details, get_test_subject_controller_normal_response, get_test_stream_controller_normal_response) -> None:
     
     start_env = _create_msg(job_id=uuid.uuid4().hex, id=1, total=test_total,interval=test_interval)
     conn_details:dict[str, Any] = get_connection_details
     process_counter_dict = {"n":0}
 
-    def _process_feedback_message(msg) -> tuple[Envelope, bool]:
-        #process_counter += 1
+    def _process_feedback_message(msg:Envelope) -> tuple[Envelope, bool]:
+        """ process feedback in the controller
+
+        Args:
+            msg (Envelope): message received
+
+        Returns:
+            tuple[Envelope, bool]: Next Message, Continue_Next?
+        """
         process_counter_dict["n"] += 1
-        return None, False
+        
+        if msg.id == msg.total:
+            return None, False
+        #Create a new message
+        next_env = _create_msg(
+            job_id=msg.job_id,
+            id=msg.id+1,
+            total=msg.total,
+            interval=msg.interval
+        )
+        return next_env, True
     
     async def _process():
         await _controller(
             hostname=conn_details.get("hostname"),
             port=conn_details.get("port"),
-            test_subject=f"{get_test_subject_controller_no_response}",
-            test_stream=get_test_stream_controller_no_response,
+            test_subject=f"{get_test_subject_controller_normal_response}",
+            test_stream=get_test_stream_controller_normal_response,
             seed_payload=start_env,
             process_msg=_process_feedback_message
         )
@@ -117,14 +135,15 @@ def test_controller_no_response(get_connection_details, get_test_subject_control
     loop = asyncio.get_event_loop()
     loop.run_until_complete(_process())
     loop.close()
-    assert process_counter_dict["n"] >= 1
+    assert process_counter_dict["n"] >= test_total, f'Controller processed {process_counter_dict["n"]} only, expecting {test_total}'
+    logger.info(f"Controller processed {process_counter_dict['n']} messages")
     pass
 
 @pytest.mark.skipif("test_worker" not in test_cases, reason="no need")
-def test_worker (get_connection_details, get_test_subject_controller_no_response, get_test_stream_controller_no_response) -> None:
-    job_submit_subject = f"{get_test_subject_controller_no_response}_job_submit"
-    job_feedback_subject = f"{get_test_subject_controller_no_response}_job_feedback"
-    test_stream = get_test_stream_controller_no_response
+def test_worker_with_response (get_connection_details, get_test_subject_controller_normal_response, get_test_stream_controller_normal_response) -> None:
+    job_submit_subject = f"{get_test_subject_controller_normal_response}_job_submit"
+    job_feedback_subject = f"{get_test_subject_controller_normal_response}_job_feedback"
+    test_stream = get_test_stream_controller_normal_response
 
     async def _process():
         conn_details:dict[str, Any] = get_connection_details
@@ -161,7 +180,7 @@ def test_worker (get_connection_details, get_test_subject_controller_no_response
             logger.info("Time out reading")
         finally:
             await p.close()
-        logger.info(f"Processed {message_received} messages")
+        logger.info(f"Worker processed {message_received} messages")
     
     loop = asyncio.get_event_loop()
     loop.run_until_complete(_process())
