@@ -29,7 +29,7 @@ class Envelope:
 test_interval:int = 10
 test_total:int = 10
 
-execution_limit:int = 5
+execution_limit:int = 5*2
 
 def _create_msg(job_id:str, id:int, total:int, interval:int) -> Envelope:
     return Envelope(
@@ -64,6 +64,7 @@ async def _controller(hostname:str,
     await p.publish(subject=job_submit_subject, payloads=payloads)
     logger.info("Publish done")
     # Listen to the job_feedback_subject
+    
     pubsub = await p.pull_subscribe(subject=job_feedback_subject, durable_name="controller")
 
     expiry_ex_datetime:datetime = datetime.now() + timedelta(seconds=execution_limit)
@@ -71,12 +72,14 @@ async def _controller(hostname:str,
     work_done:bool = False
     while (datetime.now().timestamp() < expiry_ex_datetime.timestamp()) and (not work_done):
         try:
+            logger.info(f"controller subscribing to {job_feedback_subject}")
             async with p.pull_subscribe_fetch_message_helper(
                     pull_subscription=pubsub, number_msgs=3, timeout_seconds=2
                 ) as messages:
                 for m in messages:
-                    logger.info(f"controller received {m.data}")
-                    next_job, continue_next = process_msg(m.data)
+                    logger.info(f"controller received {m}")
+                    received_msg = Envelope(**m)
+                    next_job, continue_next = process_msg(received_msg)
                     if continue_next:
                         await p.publish(subject=job_submit_subject, payloads=[next_job.__dict__])
         except nats.errors.TimeoutError:
@@ -93,8 +96,11 @@ def test_controller_no_response(get_connection_details, get_test_subject_control
     
     start_env = _create_msg(job_id=uuid.uuid4().hex, id=1, total=test_total,interval=test_interval)
     conn_details:dict[str, Any] = get_connection_details
+    process_counter_dict = {"n":0}
 
     def _process_feedback_message(msg) -> tuple[Envelope, bool]:
+        #process_counter += 1
+        process_counter_dict["n"] += 1
         return None, False
     
     async def _process():
@@ -111,13 +117,14 @@ def test_controller_no_response(get_connection_details, get_test_subject_control
     loop = asyncio.get_event_loop()
     loop.run_until_complete(_process())
     loop.close()
-
+    assert process_counter_dict["n"] >= 1
     pass
 
 @pytest.mark.skipif("test_worker" not in test_cases, reason="no need")
 def test_worker (get_connection_details, get_test_subject_controller_no_response, get_test_stream_controller_no_response) -> None:
     job_submit_subject = f"{get_test_subject_controller_no_response}_job_submit"
     job_feedback_subject = f"{get_test_subject_controller_no_response}_job_feedback"
+    test_stream = get_test_stream_controller_no_response
 
     async def _process():
         conn_details:dict[str, Any] = get_connection_details
@@ -126,6 +133,9 @@ def test_worker (get_connection_details, get_test_subject_controller_no_response
             port = conn_details.get("port")
         )
         await p.connect()
+
+        
+        await p.register_subject_to_stream(stream_name=test_stream, subject=[job_submit_subject, job_feedback_subject])
 
         pubsub = await p.pull_subscribe(subject=job_submit_subject, durable_name="test_worker1")
 
@@ -143,7 +153,8 @@ def test_worker (get_connection_details, get_test_subject_controller_no_response
                         received_msg = Envelope(**m)
                         message_received += 1
                         logger.info(f"Worker received {received_msg}")
-                        p.publish(subject=job_feedback_subject, payloads=[received_msg.__dict__])
+                        await p.publish(subject=job_feedback_subject, payloads=[received_msg.__dict__])
+                        logger.info(f"Published to {job_feedback_subject}")
                     continue_read = (len(messages) > 0)
 
         except nats.errors.TimeoutError:
