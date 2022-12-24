@@ -23,6 +23,7 @@ class Async_EventBus_Nats:
             reconnect_time_wait=self.reconnect_seconds,
             verbose=True
         )
+        logger.info(f"Connection to {self.url} done")
         self.js = self.nc.jetstream()
     
     async def register_subject_to_stream(self, stream_name:str, subject:Union[ str, list[str]]):
@@ -39,8 +40,9 @@ class Async_EventBus_Nats:
             raise Exception("Connection has not been done; Cannot register subject to strean")
         subjects = subject if type(subject) == list else [subject]
         await self.js.add_stream(name=stream_name, subjects=subjects)
+        logger.info(f"registered subjects:{subjects} to {stream_name}")
         self.stream_subject_set|=set(subjects)
-        print(self.stream_subject_set)
+        logger.info(f"collected subjects:{self.stream_subject_set}")
 
     async def publish(self, subject: str, payloads: list[dict]) -> None:
         """ publish a list of Dict Payload
@@ -56,7 +58,6 @@ class Async_EventBus_Nats:
             raise SubjectNotFoundException(f"Subject {subject} not registed to any stream")
         for p in payloads:
             ack = await self.js.publish(subject=subject, payload=json.dumps(p).encode())
-            print(f'Ack: stream={ack.stream}, sequence={ack.seq}')
             logger.info(f'Ack: stream={ack.stream}, sequence={ack.seq}')
 
     async def pull_subscribe(self, subject:str, durable_name:str) -> JetStreamContext.PullSubscription:
@@ -70,20 +71,25 @@ class Async_EventBus_Nats:
             JetStreamContext.PullSubscription: _description_
         """
         psub = await self.js.pull_subscribe(subject=subject, durable=durable_name)
+        logger.info(f"Pull subscribe subject {subject} with durable name {durable_name}")
         return psub
 
     @asynccontextmanager
     async def pull_subscribe_fetch_message_helper(self, pull_subscription: JetStreamContext.PullSubscription, number_msgs:int, timeout_seconds:float) -> Any:
         msgs = await pull_subscription.fetch(batch=number_msgs, timeout=timeout_seconds)
+
         try:
+            logger.info(f"Pull {len(msgs)} messages")
             json_msgs = [ json.loads(m.data) for m in msgs]
             yield json_msgs
         finally:
             for m in msgs:
+                logger.info(f"acknowledge messages{m}")
                 await m.ack()
         
         
     async def close(self) -> None:
         if self.nc is not None:
+            logger.info("Close connection")
             await self.nc.close()
     
