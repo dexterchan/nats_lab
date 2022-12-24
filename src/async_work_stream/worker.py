@@ -26,7 +26,7 @@ class Worker:
         pass
 
     @asynccontextmanager
-    async def _init(self)->None:
+    async def _init_work(self)->None:
         """ Connect to async event bus and create required subject and stream
         """
         self.p = Async_EventBus_Nats(
@@ -48,14 +48,13 @@ class Worker:
             work_func (func(Seq_Workload_Envelope)->bool): work function to inject actual work
         """
         
-        pubsub = await self.p.pull_subscribe(subject=self.job_submit_subject, durable_name=self.durable_name)
-
         continue_read:bool = True
         message_received:int = 0
 
         expiry_ex_datetime:datetime = datetime.now() + timedelta(seconds=self.execution_limit_seconds)
 
-        async with self.__init__():
+        async with self._init_work():
+            pubsub = await self.p.pull_subscribe(subject=self.job_submit_subject, durable_name=self.durable_name)
             while continue_read:
                 try:
                     seq_workload_enveloper_lst:list[Seq_Workload_Envelope] = []
@@ -64,7 +63,7 @@ class Worker:
                             number_msgs=self._number_of_message_per_pull,
                             timeout_seconds=self._timeout_read_seconds
                         ) as messages:
-                        logger.info(f"Worker Received:{len(m)} messages")
+                        logger.info(f"Worker Received:{len(messages)} messages")
                         for m in messages:
                             logger.info(f"Read Received:{m}")
                             message_received += 1
@@ -88,5 +87,5 @@ class Worker:
                                 , payloads=[feedback_msg.__dict__])
                 except nats.errors.TimeoutError:
                     logger.info("Time out reading, try again")
-                    continue_read = True if self.execution_limit_seconds == 0 else (datetime.now < expiry_ex_datetime)
+                    continue_read = True if self.execution_limit_seconds == 0 else (datetime.now().timestamp() < expiry_ex_datetime.timestamp())
         pass

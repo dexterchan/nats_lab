@@ -25,7 +25,7 @@ class Seq_Controller:
         pass
     
     @asynccontextmanager
-    async def _init(self)->None:
+    async def _init_controller(self)->None:
         """ Connect to async event bus and create required subject and stream
         """
         self.p = Async_EventBus_Nats(
@@ -51,7 +51,7 @@ class Seq_Controller:
         """
         last_job:Seq_Workload_Envelope = first_job
         pubsub = None
-        async with self._init():
+        async with self._init_controller():
             try:
                 await self.p.publish(subject=self.job_submit_subject, payloads=[first_job.__dict__])
                 logger.info("Publish done")
@@ -97,6 +97,10 @@ class Seq_Controller:
 
         Args:
             msg (Envelope): message received
+            iterate_job_func (func(Seq_Workload_Envelope)->tuple[Seq_Workload_Envelope, bool]): iterate function; Return Next Msg, Continue Next?
+
+        Raises:
+            RetryException: _description_
 
         Returns:
             tuple[Envelope, bool]: Next Message, Continue_Next?
@@ -107,12 +111,15 @@ class Seq_Controller:
             return None, False
         
         if msg.last_status == WorkStatus_SUCCESS:
+            logger.info("Job was successful, iterate next job")
+            next_msg, continue_next = iterate_job_func(msg)
+            
             return Seq_Workload_Envelope(
                 job_id=msg.job_id,
                 id=msg.id+1,
-                payload=iterate_job_func(msg),
+                payload=next_msg.payload,
                 total=msg.total
-            ), True
+            ), continue_next
         if msg.trial >= self._max_retry:
             raise RetryException(f"Max retry exceed at {msg}")
         

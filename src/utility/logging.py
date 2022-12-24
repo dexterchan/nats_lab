@@ -40,7 +40,7 @@ def get_logger(name: str, level: Union[str, int] = logging.INFO) -> logging.Logg
     logger.addHandler(stream_handler)
 
     file_handler = logging.FileHandler(LOG_FILE)
-    file_handler.setFormatter(json_formatter)
+    file_handler.setFormatter(formatter)
     file_handler.setLevel(_level)
     logger.addHandler(file_handler)
     return logger
