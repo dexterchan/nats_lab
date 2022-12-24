@@ -44,7 +44,7 @@ class Seq_Controller:
 
         Args:
             first_job (Seq_Workload_Envelope): the first job def_ion
-            iterate_job_func (_type_): iterate job function
+            iterate_job_func (func(Seq_Workload_Envelope)): iterate job function with argument of Seq_Workload_Envelope
 
         Returns:
             Tuple[Seq_Workload_Envelope, Exception]: last processed job, exception if exists
