@@ -88,8 +88,8 @@ class Seq_Controller:
             except Exception as ex:
                 return last_job, ex
             if datetime.now().timestamp() < expiry_ex_datetime.timestamp():
-                logger.info(f"Time out for the job {self.job_subject}")
-                return last_job, TimeOutException(f"Time out for the job {self.job_subject}")
+                logger.info(f"Controller Quit: Time out for the job {self.job_subject}")
+                return last_job, TimeOutException(f"Controller Quit: Time out for the job {self.job_subject}")
         return last_job, None
     
     def _process_feedback_message(self, msg:Seq_Workload_Envelope, iterate_job_func) -> tuple[Seq_Workload_Envelope, bool]:
@@ -107,7 +107,7 @@ class Seq_Controller:
         """
         self._process_counter += 1
         
-        if msg.id == msg.total:
+        if msg.id > msg.total:
             return None, False
         
         if msg.last_status == WorkStatus_SUCCESS:

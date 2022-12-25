@@ -65,7 +65,7 @@ class Worker:
                         ) as messages:
                         logger.info(f"Worker Received:{len(messages)} messages")
                         for m in messages:
-                            logger.info(f"Read Received:{m}")
+                            logger.info(f"Worker Read Received:{m}")
                             message_received += 1
                             received_msg = Seq_Workload_Envelope(**m)
                             logger.info(f"Acknowledge Parsed message {received_msg}")
@@ -87,5 +87,6 @@ class Worker:
                                 , payloads=[feedback_msg.__dict__])
                 except nats.errors.TimeoutError:
                     logger.info("Time out reading, try again")
+                finally:
                     continue_read = True if self.execution_limit_seconds == 0 else (datetime.now().timestamp() < expiry_ex_datetime.timestamp())
         pass
