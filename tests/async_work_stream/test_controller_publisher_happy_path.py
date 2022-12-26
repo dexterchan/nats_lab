@@ -50,14 +50,18 @@ async def test_controller_happy_path(
         if msg.id >= test_total:
             return None, False
         logger.debug(f"controller received: {msg}")
-        return Seq_Workload_Envelope(
-            job_id=msg.job_id,
-            id=msg.id+1,
-            total=msg.total,
-            payload=msg.payload,
-            trial=msg.trial,
-            last_status=WorkStatus_SUCCESS
-        ), True
+        new_workload:Seq_Workload_Envelope = msg.copy()
+        new_workload.id += 1
+        new_workload.last_status = WorkStatus_SUCCESS
+        return new_workload, True
+        # return Seq_Workload_Envelope(
+        #     job_id=msg.job_id,
+        #     id=msg.id+1,
+        #     total=msg.total,
+        #     payload=msg.payload,
+        #     trial=msg.trial,
+        #     last_status=WorkStatus_SUCCESS
+        # ), True
 
     await _controller.submit_seq_job(
         first_job=get_first_job(test_total),

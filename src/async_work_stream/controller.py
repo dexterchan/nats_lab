@@ -53,6 +53,7 @@ class Seq_Controller:
             Tuple[Seq_Workload_Envelope, Exception]: last processed job, exception if exists
         """
         last_job:Seq_Workload_Envelope = first_job
+        
         pubsub = None
         async with self._init_controller():
             try:
@@ -118,21 +119,27 @@ class Seq_Controller:
             logger.info("Job was successful, iterate next job")
             next_msg, continue_next = iterate_job_func(msg)
             
-            return Seq_Workload_Envelope(
-                job_id=msg.job_id,
-                id=msg.id+1,
-                payload=next_msg.payload,
-                total=msg.total
-            ), continue_next
+            new_workload: Seq_Workload_Envelope = msg.copy()
+            new_workload.id += 1
+            return new_workload, continue_next
+            # return Seq_Workload_Envelope(
+            #     job_id=msg.job_id,
+            #     id=msg.id+1,
+            #     payload=next_msg.payload,
+            #     total=msg.total
+            # ), continue_next
         if msg.trial+1 >= self.MAX_RETRY:
             logger.info(f"Controller quit retry job {msg}")
             raise RetryException(f"Max retry exceed at {msg}")
         
         logger.info(f"Controller retry job {msg}")
-        return Seq_Workload_Envelope(
-            job_id=msg.job_id,
-            id=msg.id,
-            payload=(msg.payload),
-            total=msg.total,
-            trial=msg.trial+1
-        ), True
+        new_workload:Seq_Workload_Envelope = msg.copy()
+        new_workload.trial += 1
+        return new_workload, True
+        # return Seq_Workload_Envelope(
+        #     job_id=msg.job_id,
+        #     id=msg.id,
+        #     payload=(msg.payload),
+        #     total=msg.total,
+        #     trial=msg.trial+1
+        # ), True
