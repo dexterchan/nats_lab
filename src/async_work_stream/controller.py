@@ -10,7 +10,10 @@ from .exception import RetryException, TimeOutException
 
 logger = get_logger(__name__)
 
+
 class Seq_Controller:
+    MAX_RETRY:int = 3
+
     def __init__(self, hostname:str, port:int, subject:str, persistance_stream_name:str, execution_limit_seconds:int) -> None:
         self.job_subject = subject
         self.job_submit_subject = f"{subject}_seq_job_submit"
@@ -21,7 +24,7 @@ class Seq_Controller:
         self.port = port
         self.durable_name = f"Seq_Controller"
         self._process_counter:int = 0
-        self._max_retry:int = 3
+        
         pass
     
     @asynccontextmanager
@@ -108,6 +111,7 @@ class Seq_Controller:
         self._process_counter += 1
         
         if msg.id > msg.total:
+            logger.info(f"Controller finish job {msg}")
             return None, False
         
         if msg.last_status == WorkStatus_SUCCESS:
@@ -120,9 +124,11 @@ class Seq_Controller:
                 payload=next_msg.payload,
                 total=msg.total
             ), continue_next
-        if msg.trial >= self._max_retry:
+        if msg.trial+1 >= self.MAX_RETRY:
+            logger.info(f"Controller quit retry job {msg}")
             raise RetryException(f"Max retry exceed at {msg}")
         
+        logger.info(f"Controller retry job {msg}")
         return Seq_Workload_Envelope(
             job_id=msg.job_id,
             id=msg.id,
