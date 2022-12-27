@@ -35,7 +35,8 @@ def get_logger(name: str, level: Union[str, int] = logging.INFO) -> logging.Logg
     logger.setLevel(_level)
 
     stream_handler = logging.StreamHandler()
-    stream_handler.setFormatter(json_formatter)
+    stream_handler.setFormatter(formatter#json_formatter
+    )
     stream_handler.setLevel(_level)
     logger.addHandler(stream_handler)
 

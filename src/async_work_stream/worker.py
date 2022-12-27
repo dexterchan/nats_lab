@@ -89,4 +89,5 @@ class Worker:
                     logger.info("Time out reading, try again")
                 finally:
                     continue_read = True if self.execution_limit_seconds == 0 else (datetime.now().timestamp() < expiry_ex_datetime.timestamp())
+            logger.info(f"Worker quite execution: {datetime.now()} ; expiry {expiry_ex_datetime}")
         pass

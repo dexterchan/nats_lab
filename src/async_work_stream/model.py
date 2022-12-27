@@ -8,7 +8,7 @@ WorkStatus_SUCCESS=1
 WorkStatus_FAIL=-1
 WorkStatus_RUNNING=0
 
-default_date_lambda = lambda:((datetime.now() + timedelta(hours=1)).timestamp()*1000)
+default_date_lambda = lambda:(int((datetime.now() + timedelta(hours=1)).timestamp()*1000))
 
 @dataclass
 class Seq_Workload_Envelope:
@@ -26,4 +26,12 @@ class Seq_Workload_Envelope:
         #     **self.__dict__
         # )
         return copy.deepcopy(self)
+    
+    @staticmethod
+    def current_time_stamp() -> int:
+        return int(datetime.now().timestamp() * 1000)
+
+    @staticmethod
+    def calculate_expiry_date_timestamp(seconds:int) -> int:
+        return int((datetime.now()+timedelta(seconds=seconds)).timestamp()*1000)
     

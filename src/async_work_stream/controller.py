@@ -41,6 +41,20 @@ class Seq_Controller:
         yield
         await self.p.close()
 
+    def _check_message_eligible_to_process(self, job_id:str, message:Seq_Workload_Envelope) -> bool:
+        """ Check if we process the message based on criteria:
+        - expiry?
+        - job id? (not yet considered)
+
+        Args:
+            job_id (str): Job Id
+            message (Seq_Workload_Envelope): Message received
+
+        Returns:
+            bool: accept (True) or reject (False)
+        """
+        return message.expiry_date >= Seq_Workload_Envelope.current_time_stamp()
+
     
     async def submit_seq_job(self, first_job:Seq_Workload_Envelope, iterate_job_func) -> Tuple[Seq_Workload_Envelope, Exception]:
         """ Submit sequential job
@@ -53,12 +67,13 @@ class Seq_Controller:
             Tuple[Seq_Workload_Envelope, Exception]: last processed job, exception if exists
         """
         last_job:Seq_Workload_Envelope = first_job
+        current_job_id:str = first_job.job_id
         
         pubsub = None
         async with self._init_controller():
             try:
                 await self.p.publish(subject=self.job_submit_subject, payloads=[first_job.__dict__])
-                logger.info("Publish done")
+                logger.info(f"Publish {first_job} done")
                 # Listen to the job_feedback_subject
                 pubsub = await self.p.pull_subscribe(subject=self.job_feedback_subject, durable_name=self.durable_name)
                 
@@ -78,6 +93,10 @@ class Seq_Controller:
                             for m in messages:
                                 logger.info(f"controller received {m}")
                                 received_msg = Seq_Workload_Envelope(**m)
+                                if not self._check_message_eligible_to_process(job_id=current_job_id,
+                                                message=received_msg):
+                                    logger.info("Controller skipped this message which does not fit eligible criteria")
+                                    continue
                                 
                                 next_job, continue_next = self._process_feedback_message(msg=received_msg, iterate_job_func=iterate_job_func)
                                 logger.info(f"controller will run next job: {continue_next} with msg: {next_job}")

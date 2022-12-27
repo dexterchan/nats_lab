@@ -6,14 +6,15 @@ import time
 from collections import defaultdict
 from async_work_stream.model import WorkStatus_SUCCESS
 from utility.logging import get_test_logger
+from datetime import datetime, timedelta
 
 logger = get_test_logger(__name__)
 
 test_total:int = 1
-dummy_job_wait_seconds:int = 30
+dummy_job_wait_seconds:int = 5
 
 
-exection_limit_seconds:int =  10
+exection_limit_seconds:int =  dummy_job_wait_seconds+10 * test_total
 blocking_job_id:str = "blocking_job"
 success_job_id:str = "run_smooth_job"
 
@@ -43,7 +44,7 @@ async def test_controller_expiry(
         persistance_stream_name=get_test_stream_Seq_Controller_worker_expiry,
         execution_limit_seconds= exection_limit_seconds)
 
-    process_counter_dict:dict = defaultdict(int)
+    controller_iterate_counter_dict:dict = defaultdict(int)
     def _iterate_message(msg:Seq_Workload_Envelope) -> tuple[Seq_Workload_Envelope, bool]:
         """ expect no iteration
 
@@ -53,7 +54,7 @@ async def test_controller_expiry(
         Returns:
             tuple[Seq_Workload_Envelope, bool]: Next Message, Continue_Next?
         """
-        process_counter_dict[msg.job_id] += 1
+        controller_iterate_counter_dict[msg.job_id] += 1
         if msg.id >= test_total:
             return None, False
         logger.debug(f"controller received: {msg}")
@@ -61,24 +62,26 @@ async def test_controller_expiry(
         new_workload.id += 1
         new_workload.last_status = WorkStatus_SUCCESS
         return new_workload, True
-        # return Seq_Workload_Envelope(
-        #     job_id=msg.job_id,
-        #     id=msg.id+1,
-        #     total=msg.total,
-        #     payload=msg.payload,
-        #     trial=msg.trial,
-        #     last_status=WorkStatus_SUCCESS
-        # ), True
+        
     
     block_job:Seq_Workload_Envelope = get_first_job(test_total)
     block_job.job_id = blocking_job_id
+    block_job.expiry_date = Seq_Workload_Envelope.calculate_expiry_date_timestamp(seconds=dummy_job_wait_seconds)
     await _controller.submit_seq_job(
         first_job=block_job,
         iterate_job_func=_iterate_message
     )
-    assert process_counter_dict[block_job] == 0
-    
+    assert controller_iterate_counter_dict[blocking_job_id] == 0
 
+    run_job:Seq_Workload_Envelope = get_first_job(test_total)
+    run_job.job_id = success_job_id
+    logger.info(f"Controller submits job {success_job_id}")
+    await _controller.submit_seq_job(
+        first_job=run_job,
+        iterate_job_func=_iterate_message
+    )
+    assert controller_iterate_counter_dict[success_job_id] == test_total
+    assert controller_iterate_counter_dict[blocking_job_id] == 0
     pass
 
 
@@ -102,6 +105,7 @@ async def test_worker_expiry(
 
         logger.info(f"Worker executes {work}:Dummy job wait {dummy_job_wait_seconds}")
         time.sleep(dummy_job_wait_seconds)
+        logger.info("worker sleep finish... resume work")
         return False
 
     conn_details:dict = get_connection_details
@@ -111,11 +115,12 @@ async def test_worker_expiry(
         port=conn_details.get("port"), 
         subject=get_test_subject_Seq_Controller_worker_expiry,
         persistance_stream_name=get_test_stream_Seq_Controller_worker_expiry,
-        execution_limit_seconds=exection_limit_seconds)
+        execution_limit_seconds=exection_limit_seconds*2)
 
     await worker.listen_job_order(
         work_func=_dummy_work_expiry
     )
-    assert len(collected_msg) == 2
+    logger.debug(f"Worker processed {len(collected_msg)} msgs: {collected_msg}")
+    assert len(collected_msg) ==  test_total + 1
     
     pass
