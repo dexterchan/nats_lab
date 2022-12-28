@@ -48,10 +48,11 @@ setup(
     include_package_data=True,
     keywords='nats_lab',
     name='nats_lab',
-    packages=find_packages(include=['nats_lab', 'nats_lab.*']),
+    package_dir={"": "src"},
+    packages=find_packages(where="src"),
     test_suite='tests',
     tests_require=test_requirements,
     url='https://github.com/dexterchan/nats_lab',
-    version='0.1.1',
+    version='0.1.2',
     zip_safe=False,
 )
