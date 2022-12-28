@@ -2,6 +2,10 @@
 ## Unit test:
 ```
 clear && pytest  -s  -n 2 tests/jetstreams/test_multi_processes.py
+clear && pytest -s -n 2 tests/async_work_stream/test_controller_publisher_no_response.py
+clear && pytest -s -n 2 tests/async_work_stream/test_controller_publisher_happy_path.py
+clear && pytest -s -n 2 tests/async_work_stream/test_controller_worker_expiry.py
+clear && pytest -s -n 2 tests/async_work_stream/test_controller_worker_failure.py
 ```
 
 ## Notes:
