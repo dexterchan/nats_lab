@@ -5,7 +5,7 @@ from typing import Tuple
 import nats
 from .model import Seq_Workload_Envelope
 from contextlib import asynccontextmanager
-from .model import WorkStatus_FAIL, WorkStatus_RUNNING, WorkStatus_SUCCESS
+from .model import WorkStatus
 from datetime import datetime, timedelta
 
 logger = get_logger(__name__)
@@ -75,14 +75,14 @@ class Worker:
                     #Processed each message after acknowledge receive loop
                     for workload in seq_workload_enveloper_lst:
                         feedback_msg:Seq_Workload_Envelope = workload
-                        feedback_msg.last_status = WorkStatus_RUNNING
+                        feedback_msg.last_status = WorkStatus.RUNNING
                         try:
                             if work_func(workload):
-                                feedback_msg.last_status = WorkStatus_SUCCESS
+                                feedback_msg.last_status = WorkStatus.SUCCESS
                             else:
-                                feedback_msg.last_status = WorkStatus_FAIL
+                                feedback_msg.last_status = WorkStatus.FAIL
                         except Exception as ex:
-                            feedback_msg.last_status = WorkStatus_FAIL
+                            feedback_msg.last_status = WorkStatus.FAIL
 
                         logger.info(f"Published to {self.job_feedback_subject}:{feedback_msg}")
                         await self.p.publish(subject=self.job_feedback_subject

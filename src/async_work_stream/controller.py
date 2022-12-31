@@ -1,6 +1,6 @@
 from jetstreams.client import Async_EventBus_Nats
 import asyncio
-from .model import Seq_Workload_Envelope, WorkStatus_RUNNING, WorkStatus_SUCCESS, WorkStatus_FAIL
+from .model import Seq_Workload_Envelope, WorkStatus
 from typing import Tuple
 from datetime import datetime, timedelta
 from utility.logging import get_logger
@@ -136,7 +136,7 @@ class Seq_Controller:
             logger.info(f"Controller finish job {msg}")
             return None, False
         
-        if msg.last_status == WorkStatus_SUCCESS:
+        if msg.last_status == WorkStatus.SUCCESS:
             logger.info("Job was successful, iterate next job")
             next_msg, continue_next = iterate_job_func(msg)
             

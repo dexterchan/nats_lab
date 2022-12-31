@@ -4,7 +4,7 @@ from async_work_stream.model import Seq_Workload_Envelope
 import pytest
 import uuid
 from collections import defaultdict
-from async_work_stream.model import WorkStatus_SUCCESS
+from async_work_stream.model import WorkStatus
 from utility.logging import get_test_logger
 
 logger = get_test_logger(__name__)
@@ -58,7 +58,7 @@ async def test_controller_failure(
         logger.debug(f"controller received: {msg}")
         new_workload:Seq_Workload_Envelope = msg.copy()
         new_workload.id += 1
-        new_workload.last_status = WorkStatus_SUCCESS
+        new_workload.last_status = WorkStatus.SUCCESS
         return new_workload, True
         
     

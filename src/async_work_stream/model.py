@@ -3,10 +3,18 @@ from dataclasses import dataclass, field
 from typing import Optional, Any
 from datetime import datetime, timedelta
 import copy
+from enum import Enum
 
-WorkStatus_SUCCESS=1
-WorkStatus_FAIL=-1
-WorkStatus_RUNNING=0
+# WorkStatus_SUCCESS=1
+# WorkStatus_FAIL=-1
+# WorkStatus_RUNNING=0
+
+
+class WorkStatus(int, Enum):
+    """Work status"""
+    SUCCESS = 1
+    FAIL = -1
+    RUNNING = 0
 
 default_date_lambda = lambda:(int((datetime.now() + timedelta(hours=1)).timestamp()*1000))
 
