@@ -80,6 +80,9 @@ servedocs: docs ## compile the docs watching for changes
 release: dist ## package and upload a release
 	twine upload dist/*
 
+release_test: dist ## package and upload a test release
+	twine upload --repository testpypi dist/*
+
 dist: clean ## builds source and wheel package
 	python setup.py sdist
 	python setup.py bdist_wheel
@@ -93,3 +96,9 @@ minikube_deploy:
 
 minikube_destroy:
 	sh scripts/k8s/destroy-nats-minikube.sh
+
+bump_version_patch:
+	bump2version patch --allow-dirty 
+
+bump_version_minor:
+	bump2version minor --allow-dirty 

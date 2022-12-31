@@ -14,7 +14,7 @@ logger = get_logger(__name__)
 class Seq_Controller:
     MAX_RETRY:int = 3
 
-    def __init__(self, hostname:str, port:int, subject:str, persistance_stream_name:str, execution_limit_seconds:int) -> None:
+    def __init__(self, hostname:str, port:int, subject:str, persistance_stream_name:str, execution_limit_seconds:int, msg_retention_minutes:int=12*60) -> None:
         self.job_subject = subject
         self.job_submit_subject = f"{subject}_seq_job_submit"
         self.job_feedback_subject = f"{subject}_seq_job_feedback"
@@ -24,6 +24,7 @@ class Seq_Controller:
         self.port = port
         self.durable_name = f"Seq_Controller"
         self._process_counter:int = 0
+        self.msg_retention_minutes = msg_retention_minutes
         
         pass
     
@@ -33,7 +34,8 @@ class Seq_Controller:
         """
         self.p = Async_EventBus_Nats(
             server=self.hostname,
-            port=self.port
+            port=self.port,
+            msg_retention_minutes=self.msg_retention_minutes
         )
         await self.p.connect()
         await self.p.register_subject_to_stream(stream_name=self.my_stream, \

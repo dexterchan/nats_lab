@@ -19,13 +19,17 @@ def get_test_subject_Seq_Controller_happy_path() -> str:
 def get_test_stream_Seq_Controller_happy_path()->str:
     return "test_Seq_Controller_stream_happy_path"
 
+@pytest.fixture
+def get_test_message_retention_period()->int:
+    return 10
 
 @pytest.mark.asyncio
 async def test_controller_happy_path(
     get_connection_details,
     get_test_subject_Seq_Controller_happy_path,
     get_test_stream_Seq_Controller_happy_path,
-    get_first_job) -> None:
+    get_first_job,
+    get_test_message_retention_period) -> None:
     
     conn_details:dict = get_connection_details
 
@@ -34,7 +38,8 @@ async def test_controller_happy_path(
         port=conn_details.get("port"),
         subject=get_test_subject_Seq_Controller_happy_path,
         persistance_stream_name=get_test_stream_Seq_Controller_happy_path,
-        execution_limit_seconds= exection_limit_seconds)
+        execution_limit_seconds= exection_limit_seconds,
+        msg_retention_minutes=get_test_message_retention_period)
 
     process_counter_dict:dict = defaultdict(int)
     def _iterate_message(msg:Seq_Workload_Envelope) -> tuple[Seq_Workload_Envelope, bool]:
@@ -54,14 +59,7 @@ async def test_controller_happy_path(
         new_workload.id += 1
         new_workload.last_status = WorkStatus_SUCCESS
         return new_workload, True
-        # return Seq_Workload_Envelope(
-        #     job_id=msg.job_id,
-        #     id=msg.id+1,
-        #     total=msg.total,
-        #     payload=msg.payload,
-        #     trial=msg.trial,
-        #     last_status=WorkStatus_SUCCESS
-        # ), True
+        
 
     await _controller.submit_seq_job(
         first_job=get_first_job(test_total),
@@ -76,6 +74,7 @@ async def test_worker_happy_path(
     get_connection_details,
     get_test_subject_Seq_Controller_happy_path,
      get_test_stream_Seq_Controller_happy_path,
+     get_test_message_retention_period
 )->None:
     conn_details:dict = get_connection_details
     process_counter_dict:dict = defaultdict(int)
@@ -91,7 +90,8 @@ async def test_worker_happy_path(
         port=conn_details.get("port"), 
         subject=get_test_subject_Seq_Controller_happy_path,
         persistance_stream_name=get_test_stream_Seq_Controller_happy_path,
-        execution_limit_seconds=exection_limit_seconds)
+        execution_limit_seconds=exection_limit_seconds,
+        msg_retention_minutes=get_test_message_retention_period)
 
     await worker.listen_job_order(
         work_func=_dummy_happy_workload

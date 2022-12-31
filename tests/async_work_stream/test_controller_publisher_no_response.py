@@ -18,7 +18,8 @@ def get_test_subject_Seq_Controller_no_response() -> str:
 @pytest.fixture
 def get_test_stream_Seq_Controller_no_response()->str:
     return "test_Seq_Controller_stream_no_response"
-    
+
+test_message_retention_period=10  
 
 @pytest.mark.asyncio
 async def test_controller_without_response(
@@ -34,7 +35,8 @@ async def test_controller_without_response(
         port=conn_details.get("port"),
         subject=get_test_subject_Seq_Controller_no_response,
         persistance_stream_name=get_test_stream_Seq_Controller_no_response,
-        execution_limit_seconds= exection_limit_seconds)
+        execution_limit_seconds= exection_limit_seconds,
+        msg_retention_minutes=test_message_retention_period)
 
     process_counter_dict:dict = defaultdict(int)
     def _iterate_message(msg:Seq_Workload_Envelope) -> tuple[Seq_Workload_Envelope, bool]:
@@ -78,7 +80,8 @@ async def test_worker_without_response(
         port=conn_details.get("port"), 
         subject=get_test_subject_Seq_Controller_no_response,
         persistance_stream_name=get_test_stream_Seq_Controller_no_response,
-        execution_limit_seconds=exection_limit_seconds)
+        execution_limit_seconds=exection_limit_seconds,
+        msg_retention_minutes=test_message_retention_period)
 
     await worker.listen_job_order(
         work_func=_dummy_workload

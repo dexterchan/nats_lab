@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 logger = get_logger(__name__)
 
 class Worker:
-    def __init__(self,hostname:str, port:int, subject:str, persistance_stream_name:str, execution_limit_seconds:int=0) -> None:
+    def __init__(self,hostname:str, port:int, subject:str, persistance_stream_name:str, execution_limit_seconds:int=0, msg_retention_minutes:int=12*60) -> None:
         self.job_subject = subject
         self.job_submit_subject = f"{subject}_seq_job_submit"
         self.job_feedback_subject = f"{subject}_seq_job_feedback"
@@ -23,6 +23,7 @@ class Worker:
         self._number_of_message_per_pull = 5
         self._timeout_read_seconds = 5
         self.execution_limit_seconds = execution_limit_seconds
+        self.msg_retention_minutes = msg_retention_minutes
         pass
 
     @asynccontextmanager
@@ -31,7 +32,8 @@ class Worker:
         """
         self.p = Async_EventBus_Nats(
             server=self.hostname,
-            port=self.port
+            port=self.port,
+            msg_retention_minutes=self.msg_retention_minutes
         )
         await self.p.connect()
         await self.p.register_subject_to_stream(stream_name=self.my_stream, \

@@ -28,12 +28,17 @@ def get_test_subject_Seq_Controller_worker_expiry() -> str:
 def get_test_stream_Seq_Controller_worker_expiry()->str:
     return "test_Seq_Controller_stream_worker_expiry"
 
+@pytest.fixture
+def get_test_message_retention_period()->int:
+    return 10
+
 @pytest.mark.asyncio
 async def test_controller_expiry(
     get_connection_details,
     get_test_subject_Seq_Controller_worker_expiry,
     get_test_stream_Seq_Controller_worker_expiry,
-    get_first_job
+    get_first_job,
+    get_test_message_retention_period
 )->None:
     conn_details:dict = get_connection_details
     
@@ -42,7 +47,8 @@ async def test_controller_expiry(
         port=conn_details.get("port"),
         subject=get_test_subject_Seq_Controller_worker_expiry,
         persistance_stream_name=get_test_stream_Seq_Controller_worker_expiry,
-        execution_limit_seconds= exection_limit_seconds)
+        execution_limit_seconds= exection_limit_seconds,
+        msg_retention_minutes=get_test_message_retention_period)
 
     controller_iterate_counter_dict:dict = defaultdict(int)
     def _iterate_message(msg:Seq_Workload_Envelope) -> tuple[Seq_Workload_Envelope, bool]:
@@ -90,6 +96,7 @@ async def test_worker_expiry(
     get_connection_details,
     get_test_subject_Seq_Controller_worker_expiry,
     get_test_stream_Seq_Controller_worker_expiry,
+    get_test_message_retention_period
 )->None:
     conn_details:dict = get_connection_details
     process_counter_dict:dict = defaultdict(int)
@@ -115,7 +122,8 @@ async def test_worker_expiry(
         port=conn_details.get("port"), 
         subject=get_test_subject_Seq_Controller_worker_expiry,
         persistance_stream_name=get_test_stream_Seq_Controller_worker_expiry,
-        execution_limit_seconds=exection_limit_seconds*2)
+        execution_limit_seconds=exection_limit_seconds*2,
+        msg_retention_minutes=get_test_message_retention_period)
 
     await worker.listen_job_order(
         work_func=_dummy_work_expiry

@@ -2,6 +2,7 @@ from typing import Dict, List
 import json
 from typing import Dict, List, Set, Any
 import nats
+from nats.js.api import StreamConfig, RetentionPolicy
 from typing import Union
 from .exception import SubjectNotFoundException
 from contextlib import asynccontextmanager
@@ -11,10 +12,11 @@ from utility.logging import get_logger
 logger = get_logger(__name__)
 
 class Async_EventBus_Nats:
-    def __init__(self, server: str, port: int) -> None:
+    def __init__(self, server: str, port: int, msg_retention_minutes:int = 12*60) -> None:
         self.url = f"nats://{server}:{port}"
         self.reconnect_seconds = 10
         self.stream_subject_set:Set = set()
+        self.message_retention_seconds = msg_retention_minutes * 60
         pass
     
     async def connect(self):
@@ -39,7 +41,17 @@ class Async_EventBus_Nats:
         if self.js is None:
             raise Exception("Connection has not been done; Cannot register subject to strean")
         subjects = subject if type(subject) == list else [subject]
-        await self.js.add_stream(name=stream_name, subjects=subjects)
+
+        
+        await self.js.add_stream(
+            # name=stream_name, 
+            # subjects=subjects, 
+            config=StreamConfig(
+                name=stream_name,
+                subjects=subjects,
+                retention=RetentionPolicy.LIMITS,
+                max_age = self.message_retention_seconds
+        ))
         logger.info(f"registered subjects:{subjects} to {stream_name}")
         self.stream_subject_set|=set(subjects)
         logger.info(f"collected subjects:{self.stream_subject_set}")
