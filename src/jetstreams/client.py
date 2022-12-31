@@ -2,14 +2,18 @@ from typing import Dict, List
 import json
 from typing import Dict, List, Set, Any
 import nats
+from nats.errors import TimeoutError
+import asyncio
 from nats.js.api import StreamConfig, RetentionPolicy
 from typing import Union
 from .exception import SubjectNotFoundException
 from contextlib import asynccontextmanager
 from nats.js.client import JetStreamContext
 from utility.logging import get_logger
-
+import backoff
 logger = get_logger(__name__)
+import logging
+logging.getLogger('backoff').addHandler(logging.StreamHandler())
 
 class Async_EventBus_Nats:
     def __init__(self, server: str, port: int, msg_retention_minutes:int = 12*60) -> None:
@@ -28,6 +32,11 @@ class Async_EventBus_Nats:
         logger.info(f"Connection to {self.url} done")
         self.js = self.nc.jetstream()
     
+    #Back off required for Persistant NATS Stream when the first stream get created
+    @backoff.on_exception(backoff.expo,
+                      asyncio.TimeoutError,
+                      max_tries=10,
+                      jitter=backoff.random_jitter)
     async def register_subject_to_stream(self, stream_name:str, subject:Union[ str, list[str]]):
         """_summary_
 
@@ -56,6 +65,11 @@ class Async_EventBus_Nats:
         self.stream_subject_set|=set(subjects)
         logger.info(f"collected subjects:{self.stream_subject_set}")
 
+    #Back off required for Persistant NATS Stream when the first stream get created
+    @backoff.on_exception(backoff.expo,
+                      asyncio.TimeoutError,
+                      max_tries=10,
+                      jitter=backoff.random_jitter)
     async def publish(self, subject: str, payloads: list[dict]) -> None:
         """ publish a list of Dict Payload
 

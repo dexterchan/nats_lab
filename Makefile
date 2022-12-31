@@ -102,3 +102,9 @@ bump_version_patch:
 
 bump_version_minor:
 	bump2version minor --allow-dirty 
+
+k8s_deploy:
+	sh scripts/k8s/install-nats.sh
+
+k8s_destroy:
+	sh scripts/k8s/destroy-nats.sh

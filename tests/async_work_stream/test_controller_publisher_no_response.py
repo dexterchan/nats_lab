@@ -80,7 +80,7 @@ async def test_worker_without_response(
         port=conn_details.get("port"), 
         subject=get_test_subject_Seq_Controller_no_response,
         persistance_stream_name=get_test_stream_Seq_Controller_no_response,
-        execution_limit_seconds=exection_limit_seconds,
+        execution_limit_seconds=exection_limit_seconds*2,
         msg_retention_minutes=test_message_retention_period)
 
     await worker.listen_job_order(
