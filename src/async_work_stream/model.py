@@ -16,7 +16,12 @@ class WorkStatus(int, Enum):
     FAIL = -1
     RUNNING = 0
 
+class BatchStatus(int, Enum):
+    LIVE = 1
+    TERMINATE = 0
+
 default_date_lambda = lambda:(int((datetime.now() + timedelta(hours=1)).timestamp()*1000))
+current_date_lambda = lambda:(int(datetime.now().timestamp()*1000))
 
 @dataclass
 class Seq_Workload_Envelope:
@@ -26,8 +31,9 @@ class Seq_Workload_Envelope:
     payload:Any
     expiry_date: int = field(default_factory=default_date_lambda)
     trial:Optional[int]=0
-    last_status:int=0
-
+    last_status:WorkStatus=WorkStatus.RUNNING
+    batch_status:Optional[BatchStatus]=BatchStatus.LIVE
+    timestamp:int = field(default_factory=current_date_lambda)
     
     def copy(self) -> Seq_Workload_Envelope:
         # return Seq_Workload_Envelope(

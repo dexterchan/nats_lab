@@ -24,13 +24,23 @@ def get_test_stream_Seq_Controller_worker_failure()->str:
 def get_test_message_retention_period()->int:
     return 10
 
+@pytest.fixture
+def get_job_id_defined() -> str:
+    return "WORK_FAILURE"
+
+@pytest.fixture
+def get_my_first_job(get_first_job, get_job_id_defined) -> Seq_Workload_Envelope:
+    first_job:Seq_Workload_Envelope = get_first_job(test_total)
+    first_job.job_id = get_job_id_defined
+    return first_job
+
 @pytest.mark.asyncio
 async def test_controller_failure(
     get_connection_details,
     get_test_subject_Seq_Controller_worker_failure,
     get_test_stream_Seq_Controller_worker_failure,
     get_test_message_retention_period,
-    get_first_job
+    get_my_first_job
 ) -> None:
     conn_details:dict = get_connection_details
 
@@ -63,7 +73,7 @@ async def test_controller_failure(
         
     
     await _controller.submit_seq_job(
-        first_job=get_first_job(test_total),
+        first_job=get_my_first_job,
         iterate_job_func=_iterate_message
     )
 
@@ -75,7 +85,8 @@ async def test_worker_failure(
     get_connection_details,
     get_test_subject_Seq_Controller_worker_failure,
     get_test_stream_Seq_Controller_worker_failure,
-    get_test_message_retention_period
+    get_test_message_retention_period,
+    get_job_id_defined
 )->None:
     conn_details:dict = get_connection_details
     process_counter_dict:dict = defaultdict(int)
@@ -98,7 +109,8 @@ async def test_worker_failure(
         msg_retention_minutes=get_test_message_retention_period)
 
     await worker.listen_job_order(
-        work_func=_dummy_work_failure
+        work_func=_dummy_work_failure,
+        current_job_id=get_job_id_defined
     )
     assert len(collected_msg) == 1
     for key in collected_msg:

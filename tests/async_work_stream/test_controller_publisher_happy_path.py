@@ -23,12 +23,22 @@ def get_test_stream_Seq_Controller_happy_path()->str:
 def get_test_message_retention_period()->int:
     return 10
 
+@pytest.fixture
+def get_job_id_defined() -> str:
+    return "HAPPY_PATH"
+
+@pytest.fixture
+def get_my_first_job(get_first_job, get_job_id_defined) -> Seq_Workload_Envelope:
+    first_job:Seq_Workload_Envelope = get_first_job(test_total)
+    first_job.job_id = get_job_id_defined
+    return first_job
+
 @pytest.mark.asyncio
 async def test_controller_happy_path(
     get_connection_details,
     get_test_subject_Seq_Controller_happy_path,
     get_test_stream_Seq_Controller_happy_path,
-    get_first_job,
+    get_my_first_job,
     get_test_message_retention_period) -> None:
     
     conn_details:dict = get_connection_details
@@ -62,7 +72,7 @@ async def test_controller_happy_path(
         
 
     await _controller.submit_seq_job(
-        first_job=get_first_job(test_total),
+        first_job=get_my_first_job,
         iterate_job_func=_iterate_message
     )
     assert process_counter_dict["n"] == test_total
@@ -74,12 +84,13 @@ async def test_worker_happy_path(
     get_connection_details,
     get_test_subject_Seq_Controller_happy_path,
      get_test_stream_Seq_Controller_happy_path,
-     get_test_message_retention_period
+     get_test_message_retention_period,
+     get_job_id_defined
 )->None:
     conn_details:dict = get_connection_details
     process_counter_dict:dict = defaultdict(int)
     def _dummy_happy_workload(work:Seq_Workload_Envelope)->bool:
-        logger.info("Dummy Happy Path worker Working on {work}")
+        logger.info(f"Dummy Happy Path worker Working on {work}")
         process_counter_dict["n"]+=1
         return True
 
@@ -94,7 +105,8 @@ async def test_worker_happy_path(
         msg_retention_minutes=get_test_message_retention_period)
 
     await worker.listen_job_order(
-        work_func=_dummy_happy_workload
+        work_func=_dummy_happy_workload,
+        current_job_id=get_job_id_defined
     )
     assert process_counter_dict["n"]==test_total
     pass

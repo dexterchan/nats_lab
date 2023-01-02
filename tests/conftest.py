@@ -9,8 +9,8 @@ import uuid
 @pytest.fixture
 def get_connection_details()->dict[str,str]:
     return {
-        #"hostname":"localhost",
-        "hostname":"192.168.50.172",
+        "hostname":"localhost",
+        #"hostname":"192.168.50.172",
         "port": 4222
     }
 
@@ -57,3 +57,7 @@ def get_first_job() -> Seq_Workload_Envelope:
             }
         )
     return _get_first_job
+
+@pytest.fixture
+def get_model_path() -> str:
+    return "./resources/optimize_batch_job_controller.json"

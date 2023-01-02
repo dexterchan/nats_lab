@@ -32,12 +32,22 @@ def get_test_stream_Seq_Controller_worker_expiry()->str:
 def get_test_message_retention_period()->int:
     return 10
 
+@pytest.fixture
+def get_job_id_defined() -> str:
+    return "WORK_EXPIRY"
+
+@pytest.fixture
+def get_my_first_job(get_first_job, get_job_id_defined) -> Seq_Workload_Envelope:
+    first_job:Seq_Workload_Envelope = get_first_job(test_total)
+    first_job.job_id = get_job_id_defined
+    return first_job
+
 @pytest.mark.asyncio
 async def test_controller_expiry(
     get_connection_details,
     get_test_subject_Seq_Controller_worker_expiry,
     get_test_stream_Seq_Controller_worker_expiry,
-    get_first_job,
+    get_my_first_job,
     get_test_message_retention_period
 )->None:
     conn_details:dict = get_connection_details
@@ -70,7 +80,7 @@ async def test_controller_expiry(
         return new_workload, True
         
     
-    block_job:Seq_Workload_Envelope = get_first_job(test_total)
+    block_job:Seq_Workload_Envelope = get_my_first_job
     block_job.job_id = blocking_job_id
     block_job.expiry_date = Seq_Workload_Envelope.calculate_expiry_date_timestamp(seconds=dummy_job_wait_seconds)
     await _controller.submit_seq_job(
@@ -79,8 +89,11 @@ async def test_controller_expiry(
     )
     assert controller_iterate_counter_dict[blocking_job_id] == 0
 
-    run_job:Seq_Workload_Envelope = get_first_job(test_total)
+    run_job:Seq_Workload_Envelope = block_job.copy()
     run_job.job_id = success_job_id
+    run_job.timestamp = int(datetime.now().timestamp()*1000)
+    run_job.expiry_date = Seq_Workload_Envelope.calculate_expiry_date_timestamp(seconds=10)
+    assert block_job.timestamp != run_job.timestamp, "time stamp should not be the same"
     logger.info(f"Controller submits job {success_job_id}")
     await _controller.submit_seq_job(
         first_job=run_job,
@@ -96,7 +109,7 @@ async def test_worker_expiry(
     get_connection_details,
     get_test_subject_Seq_Controller_worker_expiry,
     get_test_stream_Seq_Controller_worker_expiry,
-    get_test_message_retention_period
+    get_test_message_retention_period,
 )->None:
     conn_details:dict = get_connection_details
     process_counter_dict:dict = defaultdict(int)
@@ -105,7 +118,7 @@ async def test_worker_expiry(
     def _dummy_work_expiry(work:Seq_Workload_Envelope)->bool:
         process_counter_dict["n"] += 1
         collected_msg[f"{work.job_id}-{work.id}"]+=1
-
+        logger.info(f"expiry worker received: {work}")
         if work.job_id != blocking_job_id:
             logger.info(f"Worker: job id{work.job_id} continue")
             return True
@@ -126,9 +139,10 @@ async def test_worker_expiry(
         msg_retention_minutes=get_test_message_retention_period)
 
     await worker.listen_job_order(
-        work_func=_dummy_work_expiry
+        work_func=_dummy_work_expiry,
+        current_job_id=None
     )
     logger.debug(f"Worker processed {len(collected_msg)} msgs: {collected_msg}")
-    assert len(collected_msg) ==  test_total + 1
+    assert len(collected_msg) ==  test_total +1
     
     pass

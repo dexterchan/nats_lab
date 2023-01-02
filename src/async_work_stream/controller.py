@@ -1,6 +1,6 @@
 from jetstreams.client import Async_EventBus_Nats
 import asyncio
-from .model import Seq_Workload_Envelope, WorkStatus
+from .model import Seq_Workload_Envelope, WorkStatus, BatchStatus
 from typing import Tuple
 from datetime import datetime, timedelta
 from utility.logging import get_logger
@@ -43,21 +43,45 @@ class Seq_Controller:
         yield
         await self.p.close()
 
-    def _check_message_eligible_to_process(self, job_id:str, message:Seq_Workload_Envelope) -> bool:
+    def _check_message_eligible_to_process(self, job_id:str, first_job_timestamp:int, message:Seq_Workload_Envelope) -> bool:
         """ Check if we process the message based on criteria:
         - expiry?
         - job id? (not yet considered)
 
         Args:
             job_id (str): Job Id
+            first_job_timestamp (int): first job timestamp
             message (Seq_Workload_Envelope): Message received
 
         Returns:
             bool: accept (True) or reject (False)
         """
-        return message.expiry_date >= Seq_Workload_Envelope.current_time_stamp()
+        current_time = Seq_Workload_Envelope.current_time_stamp()
+        #Check if job if match
+        if job_id is not None and job_id != message.job_id:
+            logger.info(f"Controller found {job_id} not matching {message}")
+            return False
+        
+        if first_job_timestamp > message.timestamp:
+            logger.info(f"Controller filter out timestamp {message} since first job timestamp {first_job_timestamp}")
+            return False
+            
+        if message.expiry_date < current_time:
+            logger.info(f"Controller job expired {message.expiry_date} current time:{current_time}")
+            
+            return False
+        return True
 
     
+    async def _finalize_batch(self, job_id:str, msg:Seq_Workload_Envelope) -> None:
+        """ do the last job to finish the batch
+        """
+        termination_msg:Seq_Workload_Envelope = msg.copy()
+        termination_msg.batch_status = BatchStatus.TERMINATE
+        await self.p.publish(subject=self.job_submit_subject, payloads=[termination_msg.__dict__])
+        logger.info(f"Controller finalized batch with job_id: {job_id} subject id:{self.job_submit_subject}")
+        pass
+
     async def submit_seq_job(self, first_job:Seq_Workload_Envelope, iterate_job_func) -> Tuple[Seq_Workload_Envelope, Exception]:
         """ Submit sequential job
 
@@ -70,12 +94,14 @@ class Seq_Controller:
         """
         last_job:Seq_Workload_Envelope = first_job
         current_job_id:str = first_job.job_id
+        job_first_timestamp:int = first_job.timestamp
+        
         
         pubsub = None
         async with self._init_controller():
             try:
                 await self.p.publish(subject=self.job_submit_subject, payloads=[first_job.__dict__])
-                logger.info(f"Publish {first_job} done")
+                logger.info(f"Publish {first_job} done at {datetime.now().timestamp()*1000}")
                 # Listen to the job_feedback_subject
                 pubsub = await self.p.pull_subscribe(subject=self.job_feedback_subject, durable_name=self.durable_name)
                 
@@ -95,26 +121,38 @@ class Seq_Controller:
                             for m in messages:
                                 logger.info(f"controller received {m}")
                                 received_msg = Seq_Workload_Envelope(**m)
-                                if not self._check_message_eligible_to_process(job_id=current_job_id,
+                                if not self._check_message_eligible_to_process(
+                                                job_id=current_job_id,
+                                                first_job_timestamp=job_first_timestamp,
                                                 message=received_msg):
                                     logger.info("Controller skipped this message which does not fit eligible criteria")
                                     continue
                                 
                                 next_job, continue_next = self._process_feedback_message(msg=received_msg, iterate_job_func=iterate_job_func)
-                                logger.info(f"controller will run next job: {continue_next} with msg: {next_job}")
-                                if not continue_next:
+                                if not next_job.job_id == current_job_id:
                                     continue
+                                if not continue_next:
+                                    logger.info(f"Controller finished job: {current_job_id} last job status:{received_msg}")
+                                    work_done = work_done or (not continue_next)
+                                    break
+                                logger.info(f"controller will run next job: {continue_next} with msg: {next_job}")
+
                                 last_job = next_job
                                 await self.p.publish(subject=self.job_submit_subject, payloads=[next_job.__dict__])
                     except nats.errors.TimeoutError:
                         logger.info(f"Time out reading from subject:{self.job_feedback_subject}, wait again")
+            
+                if datetime.now().timestamp() > expiry_ex_datetime.timestamp():
+                    logger.info(f"Controller Quit: Time out for the job {self.job_subject}")
+                    return last_job, TimeOutException(f"Controller Quit: Time out for the job {self.job_subject}")
             except RetryException as retry_ex:
                 return last_job, retry_ex
             except Exception as ex:
                 return last_job, ex
-            if datetime.now().timestamp() < expiry_ex_datetime.timestamp():
-                logger.info(f"Controller Quit: Time out for the job {self.job_subject}")
-                return last_job, TimeOutException(f"Controller Quit: Time out for the job {self.job_subject}")
+            finally:
+                await self._finalize_batch(job_id=current_job_id, msg=last_job)
+                
+            
         return last_job, None
     
     def _process_feedback_message(self, msg:Seq_Workload_Envelope, iterate_job_func) -> tuple[Seq_Workload_Envelope, bool]:

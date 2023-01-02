@@ -3,10 +3,11 @@ from jetstreams.client import Async_EventBus_Nats
 from utility.logging import get_logger
 from typing import Tuple
 import nats
-from .model import Seq_Workload_Envelope
+from .model import Seq_Workload_Envelope, BatchStatus
 from contextlib import asynccontextmanager
 from .model import WorkStatus
 from datetime import datetime, timedelta
+from typing import Optional
 
 logger = get_logger(__name__)
 
@@ -42,12 +43,40 @@ class Worker:
         #pubsub = await p.pull_subscribe(subject=job_submit_subject, durable_name="test_worker1")
         yield
         await self.p.close()
+    
+    def _filter_in_job_message(self, current_job_id:str, msg:Seq_Workload_Envelope) -> bool:
+        # if msg.batch_status == BatchStatus.TERMINATE:
+        #     logger.info(f"Worker filter out msg since batch job is terminated {msg}")
+        #     return False
 
-    async def listen_job_order(self, work_func)->None:
+        if current_job_id is None:
+            return True
+
+        if msg.job_id != current_job_id:
+            logger.info(f"Worker filter out msg since current job id {current_job_id} not matching {msg}")
+            return False
+        
+        return True
+    
+    
+    def _determine_worker_still_alive(self,  current_job_id:str, last_msg:Seq_Workload_Envelope) -> bool:
+        if current_job_id is  None:
+            return True
+        if current_job_id == last_msg.job_id and last_msg.batch_status == BatchStatus.TERMINATE:
+            logger.info(f"Worker find batch {last_msg.job_id} terminated.... Worker stop here {last_msg}")
+            return False
+        
+        return True
+    
+    def _check_worker_job_expiry(self, expiry_ex_datetime:datetime) -> bool:
+        return True if self.execution_limit_seconds == 0 else (datetime.now().timestamp() < expiry_ex_datetime.timestamp())
+
+    async def listen_job_order(self,  work_func, current_job_id:Optional[str]=None)->None:
         """listen job order from event bus
 
         Args:
             work_func (func(Seq_Workload_Envelope)->bool): work function to inject actual work
+            current_job_id (Optional[str], optional): _description_. Defaults to None.
         """
         
         continue_read:bool = True
@@ -75,21 +104,30 @@ class Worker:
                     #Processed each message after acknowledge receive loop
                     for workload in seq_workload_enveloper_lst:
                         feedback_msg:Seq_Workload_Envelope = workload
-                        feedback_msg.last_status = WorkStatus.RUNNING
-                        try:
-                            if work_func(workload):
-                                feedback_msg.last_status = WorkStatus.SUCCESS
-                            else:
+                        if not self._filter_in_job_message( current_job_id=current_job_id , msg=feedback_msg):
+                            continue
+                        if feedback_msg.batch_status == BatchStatus.LIVE:
+                            feedback_msg.last_status = WorkStatus.RUNNING
+                            try:
+                                if work_func(workload):
+                                    feedback_msg.last_status = WorkStatus.SUCCESS
+                                else:
+                                    feedback_msg.last_status = WorkStatus.FAIL
+                            except Exception as ex:
                                 feedback_msg.last_status = WorkStatus.FAIL
-                        except Exception as ex:
-                            feedback_msg.last_status = WorkStatus.FAIL
 
-                        logger.info(f"Published to {self.job_feedback_subject}:{feedback_msg}")
-                        await self.p.publish(subject=self.job_feedback_subject
-                                , payloads=[feedback_msg.__dict__])
+                            logger.info(f"Worker Published to {self.job_feedback_subject}:{feedback_msg}")
+                            await self.p.publish(subject=self.job_feedback_subject
+                                    , payloads=[feedback_msg.__dict__])
+
+                        continue_read = continue_read and self._determine_worker_still_alive(
+                                            current_job_id=current_job_id,
+                                            last_msg=feedback_msg
+                                        )
                 except nats.errors.TimeoutError:
                     logger.info("Time out reading, try again")
                 finally:
-                    continue_read = True if self.execution_limit_seconds == 0 else (datetime.now().timestamp() < expiry_ex_datetime.timestamp())
+                    continue_read = continue_read and self._check_worker_job_expiry(expiry_ex_datetime=expiry_ex_datetime)
+                
             logger.info(f"Worker quite execution: {datetime.now()} ; expiry {expiry_ex_datetime}")
         pass

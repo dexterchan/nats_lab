@@ -1,0 +1,7 @@
+{
+    "hostname": "registry.example.com",
+    "port": "4222",
+    "stream_name": "optimize-seq-batch-stream",
+    "subject_name": "optimize-seq-batch-job",
+    "msg_retention_period_minutes": 720
+}
