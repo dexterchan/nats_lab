@@ -82,6 +82,12 @@ class Seq_Controller:
         logger.info(f"Controller finalized batch with job_id: {job_id} subject id:{self.job_submit_subject}")
         pass
 
+    def _job_expired(self, expiry_ex_datetime:datetime) -> bool:
+        if self.execution_limit_seconds == 0:
+            return False
+        
+        return datetime.now().timestamp() > expiry_ex_datetime.timestamp()
+
     async def submit_seq_job(self, first_job:Seq_Workload_Envelope, iterate_job_func) -> Tuple[Seq_Workload_Envelope, Exception]:
         """ Submit sequential job
 
@@ -112,7 +118,7 @@ class Seq_Controller:
 
             work_done:bool = False
             try:
-                while (datetime.now().timestamp() < expiry_ex_datetime.timestamp()) and (not work_done):
+                while (not self._job_expired(expiry_ex_datetime=expiry_ex_datetime)) and (not work_done):
                     try:
                         logger.debug(f"controller subscribing to {self.job_feedback_subject}")
                         async with self.p.pull_subscribe_fetch_message_helper(
@@ -142,7 +148,7 @@ class Seq_Controller:
                     except nats.errors.TimeoutError:
                         logger.info(f"Time out reading from subject:{self.job_feedback_subject}, wait again")
             
-                if datetime.now().timestamp() > expiry_ex_datetime.timestamp():
+                if self._job_expired(expiry_ex_datetime=expiry_ex_datetime):
                     logger.info(f"Controller Quit: Time out for the job {self.job_subject}")
                     return last_job, TimeOutException(f"Controller Quit: Time out for the job {self.job_subject}")
             except RetryException as retry_ex:
@@ -177,9 +183,9 @@ class Seq_Controller:
         if msg.last_status == WorkStatus.SUCCESS:
             logger.info("Job was successful, iterate next job")
             next_msg, continue_next = iterate_job_func(msg)
-            
-            new_workload: Seq_Workload_Envelope = msg.copy()
-            new_workload.id += 1
+            new_workload: Seq_Workload_Envelope = next_msg
+            new_workload.trial = 0
+            new_workload.last_status = WorkStatus.RUNNING
             return new_workload, continue_next
             # return Seq_Workload_Envelope(
             #     job_id=msg.job_id,
@@ -194,6 +200,7 @@ class Seq_Controller:
         logger.info(f"Controller retry job {msg}")
         new_workload:Seq_Workload_Envelope = msg.copy()
         new_workload.trial += 1
+        new_workload.last_status = WorkStatus.RUNNING
         return new_workload, True
         # return Seq_Workload_Envelope(
         #     job_id=msg.job_id,

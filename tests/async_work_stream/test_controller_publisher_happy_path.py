@@ -65,6 +65,8 @@ async def test_controller_happy_path(
         if msg.id >= test_total:
             return None, False
         logger.debug(f"controller received: {msg}")
+        assert msg.trial == 0
+        
         new_workload:Seq_Workload_Envelope = msg.copy()
         new_workload.id += 1
         new_workload.last_status = WorkStatus.SUCCESS
@@ -91,8 +93,9 @@ async def test_worker_happy_path(
     process_counter_dict:dict = defaultdict(int)
     def _dummy_happy_workload(work:Seq_Workload_Envelope)->bool:
         logger.info(f"Dummy Happy Path worker Working on {work}")
+        check_id = (process_counter_dict['n']+1 == work.id)
         process_counter_dict["n"]+=1
-        return True
+        return check_id
 
     conn_details:dict = get_connection_details
 
