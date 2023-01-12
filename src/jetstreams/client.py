@@ -35,7 +35,7 @@ class Async_EventBus_Nats:
     #Back off required for Persistant NATS Stream when the first stream get created
     @backoff.on_exception(backoff.expo,
                       asyncio.TimeoutError,
-                      max_tries=10,
+                      max_tries=3,
                       jitter=backoff.random_jitter)
     async def register_subject_to_stream(self, stream_name:str, subject:Union[ str, list[str]]):
         """_summary_
@@ -68,7 +68,7 @@ class Async_EventBus_Nats:
     #Back off required for Persistant NATS Stream when the first stream get created
     @backoff.on_exception(backoff.expo,
                       asyncio.TimeoutError,
-                      max_tries=10,
+                      max_tries=3,
                       jitter=backoff.random_jitter)
     async def publish(self, subject: str, payloads: list[dict]) -> None:
         """ publish a list of Dict Payload
@@ -105,7 +105,7 @@ class Async_EventBus_Nats:
         msgs = await pull_subscription.fetch(batch=number_msgs, timeout=timeout_seconds)
 
         try:
-            logger.info(f"Pull {len(msgs)} messages")
+            logger.debug(f"Pull {len(msgs)} messages")
             json_msgs = [ json.loads(m.data) for m in msgs]
             yield json_msgs
         finally:

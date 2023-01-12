@@ -136,6 +136,7 @@ class Seq_Controller:
                                 
                                 next_job, continue_next = self._process_feedback_message(msg=received_msg, iterate_job_func=iterate_job_func)
                                 if not next_job.job_id == current_job_id:
+                                    logger.info(f"Controller {current_job_id} skips job: {next_job}")
                                     continue
                                 if not continue_next:
                                     logger.info(f"Controller finished job: {current_job_id} last job status:{received_msg}")
@@ -181,11 +182,12 @@ class Seq_Controller:
             return None, False
         
         if msg.last_status == WorkStatus.SUCCESS:
-            logger.info("Job was successful, iterate next job")
+            logger.info(f"Controller:last successful {msg}, iterate next job")
             next_msg, continue_next = iterate_job_func(msg)
             new_workload: Seq_Workload_Envelope = next_msg
             new_workload.trial = 0
             new_workload.last_status = WorkStatus.RUNNING
+            logger.info(f"Controller prepares next job {new_workload}")
             return new_workload, continue_next
             # return Seq_Workload_Envelope(
             #     job_id=msg.job_id,
@@ -201,6 +203,7 @@ class Seq_Controller:
         new_workload:Seq_Workload_Envelope = msg.copy()
         new_workload.trial += 1
         new_workload.last_status = WorkStatus.RUNNING
+        logger.info(f"Controller prepares next job {new_workload}")
         return new_workload, True
         # return Seq_Workload_Envelope(
         #     job_id=msg.job_id,

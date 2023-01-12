@@ -129,5 +129,5 @@ class Worker:
                 finally:
                     continue_read = continue_read and self._check_worker_job_expiry(expiry_ex_datetime=expiry_ex_datetime)
                 
-            logger.info(f"Worker quite execution: {datetime.now()} ; expiry {expiry_ex_datetime}")
+            logger.info(f"Worker quits execution: {datetime.now()} ; expiry {expiry_ex_datetime}")
         pass
