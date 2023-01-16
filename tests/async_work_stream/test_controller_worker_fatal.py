@@ -6,6 +6,7 @@ import uuid
 from collections import defaultdict
 from async_work_stream.model import WorkStatus
 from utility.logging import get_test_logger
+from async_work_stream.exception import WorkerThrowException
 
 logger = get_test_logger(__name__)
 
@@ -72,14 +73,17 @@ async def test_controller_failure(
         return new_workload, True
         
     
-    ret_env, _ = await _controller.submit_seq_job(
+    ret_env, ex = await _controller.submit_seq_job(
         first_job=get_my_first_job,
         iterate_job_func=_iterate_message
     )
 
-    assert process_counter_dict["n"] == 1
+    assert process_counter_dict["n"] == 0
     
     assert ret_env.trial == 2
+    assert type(ex) == WorkerThrowException
+    logger.critical((ex))
+    
     
     
 @pytest.mark.asyncio
@@ -101,7 +105,8 @@ async def test_worker_failure(
         if process_counter_dict["n"] < Seq_Controller.MAX_RETRY:
             return False
         else:
-            return True
+            logger.critical(f"Worker throw exception at {process_counter_dict['n'] }")
+            raise ValueError("Exception with purpose")
 
     conn_details:dict = get_connection_details
 

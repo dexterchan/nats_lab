@@ -5,3 +5,7 @@ class TimeOutException(Exception):
 class RetryException(Exception):
     def __init__(self, *args: object) -> None:
         super().__init__(*args)
+
+class WorkerThrowException(Exception):
+    def __init__(self, *args: object) -> None:
+        super().__init__(*args)
