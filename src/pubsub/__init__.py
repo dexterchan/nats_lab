@@ -2,5 +2,5 @@
 
 __author__ = """Dexter Chan"""
 __email__ = 'dexterchan@gmail.com'
-__version__ = '0.1.9'
+__version__ = '0.1.10'
 version_tuple = (0, 0, 1)
