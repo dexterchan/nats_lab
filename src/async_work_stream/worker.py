@@ -114,7 +114,11 @@ class Worker:
                                 else:
                                     feedback_msg.last_status = WorkStatus.FAIL
                             except Exception as ex:
-                                feedback_msg.last_status = WorkStatus.FAIL
+                                logger.error(f"Worker throws {ex}, output {WorkStatus.FATAL}")
+                                feedback_msg.last_status = WorkStatus.FATAL
+                            except BaseException as bex:
+                                logger.error(f"Worker throws {bex}, output {WorkStatus.FATAL}")
+                                feedback_msg.last_status = WorkStatus.FATAL
 
                             logger.info(f"Worker Published to {self.job_feedback_subject}:{feedback_msg}")
                             await self.p.publish(subject=self.job_feedback_subject

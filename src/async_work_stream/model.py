@@ -15,6 +15,7 @@ class WorkStatus(int, Enum):
     SUCCESS = 1
     FAIL = -1
     RUNNING = 0
+    FATAL = -2
 
 class BatchStatus(int, Enum):
     LIVE = 1

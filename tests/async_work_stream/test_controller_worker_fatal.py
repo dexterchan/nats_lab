@@ -6,6 +6,7 @@ import uuid
 from collections import defaultdict
 from async_work_stream.model import WorkStatus
 from utility.logging import get_test_logger
+from async_work_stream.exception import WorkerThrowException
 
 logger = get_test_logger(__name__)
 
@@ -13,12 +14,12 @@ test_total=1
 exection_limit_seconds = test_total * 30
 
 @pytest.fixture
-def get_test_subject_Seq_Controller_worker_failure() -> str:
-    return "test_Seq_Controller_subject_worker_failure"
+def get_test_subject_Seq_Controller_worker_fatal() -> str:
+    return "test_Seq_Controller_subject_worker_fatal"
 
 @pytest.fixture
-def get_test_stream_Seq_Controller_worker_failure()->str:
-    return "test_Seq_Controller_stream_worker_failure"
+def get_test_stream_Seq_Controller_worker_fatal()->str:
+    return "test_Seq_Controller_stream_worker_fatal"
 
 @pytest.fixture
 def get_test_message_retention_period()->int:
@@ -37,8 +38,8 @@ def get_my_first_job(get_first_job, get_job_id_defined) -> Seq_Workload_Envelope
 @pytest.mark.asyncio
 async def test_controller_failure(
     get_connection_details,
-    get_test_subject_Seq_Controller_worker_failure,
-    get_test_stream_Seq_Controller_worker_failure,
+    get_test_subject_Seq_Controller_worker_fatal,
+    get_test_stream_Seq_Controller_worker_fatal,
     get_test_message_retention_period,
     get_my_first_job
 ) -> None:
@@ -47,8 +48,8 @@ async def test_controller_failure(
     _controller = Seq_Controller(
         hostname=conn_details.get("hostname"), 
         port=conn_details.get("port"),
-        subject=get_test_subject_Seq_Controller_worker_failure,
-        persistance_stream_name=get_test_stream_Seq_Controller_worker_failure,
+        subject=get_test_subject_Seq_Controller_worker_fatal,
+        persistance_stream_name=get_test_stream_Seq_Controller_worker_fatal,
         execution_limit_seconds= exection_limit_seconds,
         msg_retention_minutes=get_test_message_retention_period)
 
@@ -72,21 +73,24 @@ async def test_controller_failure(
         return new_workload, True
         
     
-    ret_env, _ = await _controller.submit_seq_job(
+    ret_env, ex = await _controller.submit_seq_job(
         first_job=get_my_first_job,
         iterate_job_func=_iterate_message
     )
 
-    assert process_counter_dict["n"] == 1
+    assert process_counter_dict["n"] == 0
     
     assert ret_env.trial == 2
+    assert type(ex) == WorkerThrowException
+    logger.critical((ex))
+    
     
     
 @pytest.mark.asyncio
-async def test_worker_failure(
+async def test_worker_fatal(
     get_connection_details,
-    get_test_subject_Seq_Controller_worker_failure,
-    get_test_stream_Seq_Controller_worker_failure,
+    get_test_subject_Seq_Controller_worker_fatal,
+    get_test_stream_Seq_Controller_worker_fatal,
     get_test_message_retention_period,
     get_job_id_defined
 )->None:
@@ -101,15 +105,16 @@ async def test_worker_failure(
         if process_counter_dict["n"] < Seq_Controller.MAX_RETRY:
             return False
         else:
-            return True
+            logger.critical(f"Worker throw exception at {process_counter_dict['n'] }")
+            raise ValueError("Exception with purpose")
 
     conn_details:dict = get_connection_details
 
     worker = Worker(
         hostname=conn_details.get("hostname"), 
         port=conn_details.get("port"), 
-        subject=get_test_subject_Seq_Controller_worker_failure,
-        persistance_stream_name=get_test_stream_Seq_Controller_worker_failure,
+        subject=get_test_subject_Seq_Controller_worker_fatal,
+        persistance_stream_name=get_test_stream_Seq_Controller_worker_fatal,
         execution_limit_seconds=exection_limit_seconds,
         msg_retention_minutes=get_test_message_retention_period)
 

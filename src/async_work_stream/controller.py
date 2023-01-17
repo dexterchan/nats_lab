@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from utility.logging import get_logger
 import nats
 from contextlib import asynccontextmanager
-from .exception import RetryException, TimeOutException
+from .exception import RetryException, TimeOutException, WorkerThrowException
 
 logger = get_logger(__name__)
 
@@ -154,7 +154,7 @@ class Seq_Controller:
                     return last_job, TimeOutException(f"Controller Quit: Time out for the job {self.job_subject}")
             except RetryException as retry_ex:
                 return last_job, retry_ex
-            except Exception as ex:
+            except BaseException as ex:
                 return last_job, ex
             finally:
                 await self._finalize_batch(job_id=current_job_id, msg=last_job)
@@ -189,12 +189,10 @@ class Seq_Controller:
             new_workload.last_status = WorkStatus.RUNNING
             logger.info(f"Controller prepares next job {new_workload}")
             return new_workload, continue_next
-            # return Seq_Workload_Envelope(
-            #     job_id=msg.job_id,
-            #     id=msg.id+1,
-            #     payload=next_msg.payload,
-            #     total=msg.total
-            # ), continue_next
+        elif msg.last_status == WorkStatus.FATAL:
+            logger.error(f"Controller received FATAL from worker{msg}, stop the process")
+            raise WorkerThrowException(f"Controller received FATAL from worker{msg}, stop the process")
+            
         if msg.trial+1 >= self.MAX_RETRY:
             logger.info(f"Controller quit retry job {msg}")
             raise RetryException(f"Max retry exceed at {msg}")
@@ -205,10 +203,4 @@ class Seq_Controller:
         new_workload.last_status = WorkStatus.RUNNING
         logger.info(f"Controller prepares next job {new_workload}")
         return new_workload, True
-        # return Seq_Workload_Envelope(
-        #     job_id=msg.job_id,
-        #     id=msg.id,
-        #     payload=(msg.payload),
-        #     total=msg.total,
-        #     trial=msg.trial+1
-        # ), True
+        
