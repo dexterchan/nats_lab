@@ -108,3 +108,10 @@ k8s_deploy:
 
 k8s_destroy:
 	sh scripts/k8s/destroy-nats.sh
+
+build_container:
+	docker build --tag nats_lab -f scripts/Dockerfile . --target final
+	
+build_container_test: build_container
+build_container_test:
+	docker build --tag nats_lab_test -f scripts/Dockerfile . --target test

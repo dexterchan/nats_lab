@@ -9,8 +9,8 @@ import uuid
 @pytest.fixture
 def get_connection_details()->dict[str,str]:
     return {
-        "hostname":"localhost",
-        #"hostname":"192.168.50.172",
+        #"hostname":"localhost",
+        "hostname":"192.168.50.126",
         "port": 4222
     }
 

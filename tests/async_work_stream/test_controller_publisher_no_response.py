@@ -45,7 +45,7 @@ async def test_controller_without_response(
      get_my_first_job) -> None:
     
     conn_details:dict = get_connection_details
-    
+    logger.info(f"Start controller {conn_details}")
 
 
     _controller = Seq_Controller(
@@ -86,6 +86,7 @@ async def test_worker_without_response(
      get_job_id_defined
 )->None:
     conn_details:dict = get_connection_details
+    logger.info(f"Start worker {conn_details}")
     process_counter_dict:dict = defaultdict(int)
     def _dummy_workload(work:Seq_Workload_Envelope)->bool:
         logger.info(f"Dummy Worker Working on {work}")
