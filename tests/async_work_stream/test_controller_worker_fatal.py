@@ -14,12 +14,12 @@ test_total=1
 exection_limit_seconds = test_total * 30
 
 @pytest.fixture
-def get_test_subject_Seq_Controller_worker_failure() -> str:
-    return "test_Seq_Controller_subject_worker_failure"
+def get_test_subject_Seq_Controller_worker_fatal() -> str:
+    return "test_Seq_Controller_subject_worker_fatal"
 
 @pytest.fixture
-def get_test_stream_Seq_Controller_worker_failure()->str:
-    return "test_Seq_Controller_stream_worker_failure"
+def get_test_stream_Seq_Controller_worker_fatal()->str:
+    return "test_Seq_Controller_stream_worker_fatal"
 
 @pytest.fixture
 def get_test_message_retention_period()->int:
@@ -38,8 +38,8 @@ def get_my_first_job(get_first_job, get_job_id_defined) -> Seq_Workload_Envelope
 @pytest.mark.asyncio
 async def test_controller_failure(
     get_connection_details,
-    get_test_subject_Seq_Controller_worker_failure,
-    get_test_stream_Seq_Controller_worker_failure,
+    get_test_subject_Seq_Controller_worker_fatal,
+    get_test_stream_Seq_Controller_worker_fatal,
     get_test_message_retention_period,
     get_my_first_job
 ) -> None:
@@ -48,8 +48,8 @@ async def test_controller_failure(
     _controller = Seq_Controller(
         hostname=conn_details.get("hostname"), 
         port=conn_details.get("port"),
-        subject=get_test_subject_Seq_Controller_worker_failure,
-        persistance_stream_name=get_test_stream_Seq_Controller_worker_failure,
+        subject=get_test_subject_Seq_Controller_worker_fatal,
+        persistance_stream_name=get_test_stream_Seq_Controller_worker_fatal,
         execution_limit_seconds= exection_limit_seconds,
         msg_retention_minutes=get_test_message_retention_period)
 
@@ -87,10 +87,10 @@ async def test_controller_failure(
     
     
 @pytest.mark.asyncio
-async def test_worker_failure(
+async def test_worker_fatal(
     get_connection_details,
-    get_test_subject_Seq_Controller_worker_failure,
-    get_test_stream_Seq_Controller_worker_failure,
+    get_test_subject_Seq_Controller_worker_fatal,
+    get_test_stream_Seq_Controller_worker_fatal,
     get_test_message_retention_period,
     get_job_id_defined
 )->None:
@@ -113,8 +113,8 @@ async def test_worker_failure(
     worker = Worker(
         hostname=conn_details.get("hostname"), 
         port=conn_details.get("port"), 
-        subject=get_test_subject_Seq_Controller_worker_failure,
-        persistance_stream_name=get_test_stream_Seq_Controller_worker_failure,
+        subject=get_test_subject_Seq_Controller_worker_fatal,
+        persistance_stream_name=get_test_stream_Seq_Controller_worker_fatal,
         execution_limit_seconds=exection_limit_seconds,
         msg_retention_minutes=get_test_message_retention_period)
 

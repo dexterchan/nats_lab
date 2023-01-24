@@ -5,13 +5,15 @@
 import pytest
 from async_work_stream.model import Seq_Workload_Envelope
 import uuid
+import os
 
 @pytest.fixture
 def get_connection_details()->dict[str,str]:
+    test_host_name = os.environ.get("NATS_HOSTNAME","localhost")
+    test_port = int( os.environ.get("NATS_PORT", "4222") )
     return {
-        #"hostname":"localhost",
-        "hostname":"192.168.50.126",
-        "port": 4222
+        "hostname":test_host_name,
+        "port": test_port
     }
 
 @pytest.fixture
