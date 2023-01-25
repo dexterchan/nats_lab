@@ -147,7 +147,7 @@ class Seq_Controller:
                                 last_job = next_job
                                 await self.p.publish(subject=self.job_submit_subject, payloads=[next_job.__dict__])
                     except nats.errors.TimeoutError:
-                        logger.info(f"Time out reading from subject:{self.job_feedback_subject}, wait again")
+                        logger.debug(f"Time out reading from subject:{self.job_feedback_subject}, wait again")
             
                 if self._job_expired(expiry_ex_datetime=expiry_ex_datetime):
                     logger.info(f"Controller Quit: Time out for the job {self.job_subject}")

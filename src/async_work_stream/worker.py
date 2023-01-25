@@ -129,7 +129,7 @@ class Worker:
                                             last_msg=feedback_msg
                                         )
                 except nats.errors.TimeoutError:
-                    logger.info("Time out reading, try again")
+                    logger.debug("Time out reading, try again")
                 finally:
                     continue_read = continue_read and self._check_worker_job_expiry(expiry_ex_datetime=expiry_ex_datetime)
                 

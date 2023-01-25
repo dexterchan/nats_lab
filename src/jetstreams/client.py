@@ -84,7 +84,7 @@ class Async_EventBus_Nats:
             raise SubjectNotFoundException(f"Subject {subject} not registed to any stream")
         for p in payloads:
             ack = await self.js.publish(subject=subject, payload=json.dumps(p).encode())
-            logger.info(f'Ack: stream={ack.stream}, sequence={ack.seq}')
+            logger.info(f'publish: stream={ack.stream}, sequence={ack.seq}')
 
     async def pull_subscribe(self, subject:str, durable_name:str) -> JetStreamContext.PullSubscription:
         """ Pull Subscriber creation
@@ -110,7 +110,7 @@ class Async_EventBus_Nats:
             yield json_msgs
         finally:
             for m in msgs:
-                logger.info(f"acknowledge messages{m}")
+                logger.debug(f"acknowledge messages{m}")
                 await m.ack()
         
         
