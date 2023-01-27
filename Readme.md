@@ -6,6 +6,7 @@ clear && pytest -s -n 2 tests/async_work_stream/test_controller_publisher_no_res
 clear && pytest -s -n 2 tests/async_work_stream/test_controller_publisher_happy_path.py
 clear && pytest -s -n 2 tests/async_work_stream/test_controller_worker_expiry.py
 clear && pytest -s -n 2 tests/async_work_stream/test_controller_worker_failure.py
+rm -f info.log && clear && pytest -s -n 2 tests/async_work_stream/test_controller_publisher_check_idempotent.py
 ```
 
 ## Notes:
