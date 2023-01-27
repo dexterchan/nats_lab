@@ -19,7 +19,7 @@ def test_seq_workload_env()->None:
         payload={"a":1},
     )
 
-    s2 = s1.copy()
+    s2 = s1.copy(replicate_txn_code=True)
     assert s1 == s2
     assert s1.expiry_date == s2.expiry_date
     s1.payload["b"] = 3

@@ -68,6 +68,7 @@ async def test_controller_happy_path(
         assert msg.trial == 0
         
         new_workload:Seq_Workload_Envelope = msg.copy()
+        assert msg.txn_code != new_workload.txn_code, "txn code should be different"
         new_workload.id += 1
         new_workload.last_status = WorkStatus.SUCCESS
         return new_workload, True

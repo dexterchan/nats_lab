@@ -4,6 +4,7 @@ from typing import Optional, Any
 from datetime import datetime, timedelta
 import copy
 from enum import Enum
+import uuid
 
 # WorkStatus_SUCCESS=1
 # WorkStatus_FAIL=-1
@@ -23,6 +24,7 @@ class BatchStatus(int, Enum):
 
 default_date_lambda = lambda:(int((datetime.now() + timedelta(hours=1)).timestamp()*1000))
 current_date_lambda = lambda:(int(datetime.now().timestamp()*1000))
+gen_tx_code = lambda:(str(uuid.uuid4().hex))
 
 @dataclass
 class Seq_Workload_Envelope:
@@ -35,12 +37,21 @@ class Seq_Workload_Envelope:
     last_status:WorkStatus=WorkStatus.RUNNING
     batch_status:Optional[BatchStatus]=BatchStatus.LIVE
     timestamp:int = field(default_factory=current_date_lambda)
+    txn_code:str = field(default_factory=gen_tx_code)
     
-    def copy(self) -> Seq_Workload_Envelope:
-        # return Seq_Workload_Envelope(
-        #     **self.__dict__
-        # )
-        return copy.deepcopy(self)
+    def copy(self, replicate_txn_code:bool=False) -> Seq_Workload_Envelope:
+        """copy the object itself
+
+        Args:
+            replicate_txn_code (bool, optional): note replicate tx_code. Defaults to False.
+
+        Returns:
+            Seq_Workload_Envelope: _description_
+        """
+        new_obj = copy.deepcopy(self)
+        if not replicate_txn_code:
+            new_obj.txn_code = gen_tx_code()
+        return new_obj
     
     @staticmethod
     def current_time_stamp() -> int:

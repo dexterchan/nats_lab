@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from .model import WorkStatus
 from datetime import datetime, timedelta
 from typing import Optional
+from .idempotent import Idempotent_Controller
 
 logger = get_logger(__name__)
 
@@ -25,6 +26,7 @@ class Worker:
         self._timeout_read_seconds = 5
         self.execution_limit_seconds = execution_limit_seconds
         self.msg_retention_minutes = msg_retention_minutes
+        self._my_idempotent_controller = Idempotent_Controller()
         pass
 
     @asynccontextmanager
@@ -44,10 +46,21 @@ class Worker:
         yield
         await self.p.close()
     
-    def _filter_in_job_message(self, current_job_id:str, msg:Seq_Workload_Envelope) -> bool:
-        # if msg.batch_status == BatchStatus.TERMINATE:
-        #     logger.info(f"Worker filter out msg since batch job is terminated {msg}")
-        #     return False
+    def _check_message_eligible_to_process(self, current_job_id:str, msg:Seq_Workload_Envelope) -> bool:
+        """ check if the message is eligible for processing
+
+
+        Args:
+            current_job_id (str): job id of this worker focus on
+            msg (Seq_Workload_Envelope): message received from the stream
+
+        Returns:
+            bool: True = accept ; False = reject
+        """
+        #Check if we processed before by checking the txn id
+        if not self._my_idempotent_controller.check_and_insert_txn_id(txn_id=msg.txn_code):
+            logger.info(f"Worker rejects duplicated {msg.txn_code} : {msg}")
+            return False
 
         if current_job_id is None:
             return True
@@ -56,6 +69,7 @@ class Worker:
             logger.info(f"Worker filter out msg since current job id {current_job_id} not matching {msg}")
             return False
         
+
         return True
     
     
@@ -104,7 +118,7 @@ class Worker:
                     #Processed each message after acknowledge receive loop
                     for workload in seq_workload_enveloper_lst:
                         feedback_msg:Seq_Workload_Envelope = workload
-                        if not self._filter_in_job_message( current_job_id=current_job_id , msg=feedback_msg):
+                        if not self._check_message_eligible_to_process( current_job_id=current_job_id , msg=feedback_msg):
                             continue
                         if feedback_msg.batch_status == BatchStatus.LIVE:
                             feedback_msg.last_status = WorkStatus.RUNNING

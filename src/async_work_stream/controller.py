@@ -7,7 +7,7 @@ from utility.logging import get_logger
 import nats
 from contextlib import asynccontextmanager
 from .exception import RetryException, TimeOutException, WorkerThrowException
-
+from .idempotent import Idempotent_Controller
 logger = get_logger(__name__)
 
 
@@ -25,7 +25,7 @@ class Seq_Controller:
         self.durable_name = f"Seq_Controller"
         self._process_counter:int = 0
         self.msg_retention_minutes = msg_retention_minutes
-        
+        self._my_idempotent_controller = Idempotent_Controller()
         pass
     
     @asynccontextmanager
@@ -47,6 +47,7 @@ class Seq_Controller:
         """ Check if we process the message based on criteria:
         - expiry?
         - job id? (not yet considered)
+        - have we processed before?
 
         Args:
             job_id (str): Job Id
@@ -57,6 +58,12 @@ class Seq_Controller:
             bool: accept (True) or reject (False)
         """
         current_time = Seq_Workload_Envelope.current_time_stamp()
+
+        #Check if we processed before by checking the txn id
+        if not self._my_idempotent_controller.check_and_insert_txn_id(txn_id=message.txn_code):
+            logger.info(f"Controller rejects duplicated {message.txn_code} : {message}")
+            return False
+
         #Check if job if match
         if job_id is not None and job_id != message.job_id:
             logger.info(f"Controller found {job_id} not matching {message}")
